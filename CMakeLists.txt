@@ -5,10 +5,11 @@ project(tactile_servoing_shadow)
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED
-  roscpp
-  rospy
-  std_msgs
-  pr2_controllers_msgs
+  roscpp rospy
+  std_msgs message_generation
+  pr2_controllers_msgs control_toolbox
+  tf tf2 tf2_ros
+  moveit_core moveit_ros_planning moveit_ros_planning_interface pluginlib cmake_modules
   )
   
   
@@ -48,18 +49,16 @@ find_package(Boost REQUIRED system filesystem date_time thread)
 ##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
 
 ## Generate messages in the 'msg' folder
-# add_message_files(
-#   FILES
-#   Message1.msg
-#   Message2.msg
-# )
+add_message_files(
+   FILES
+    jacobian_matrix.msg
+)
 
 ## Generate services in the 'srv' folder
-# add_service_files(
-#   FILES
-#   Service1.srv
-#   Service2.srv
-# )
+add_service_files(
+   FILES
+   getFingerJacobianMatrix.srv
+)
 
 ## Generate actions in the 'action' folder
 # add_action_files(
@@ -69,10 +68,10 @@ find_package(Boost REQUIRED system filesystem date_time thread)
 # )
 
 ## Generate added messages and services with any dependencies listed here
-# generate_messages(
-#   DEPENDENCIES
-#   std_msgs  # Or other packages containing msgs
-# )
+generate_messages(
+   DEPENDENCIES
+   std_msgs  # Or other packages containing msgs
+)
 
 ###################################
 ## catkin specific configuration ##
@@ -87,8 +86,10 @@ catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES pr2_moveit_tutorials
   CATKIN_DEPENDS 
-    pr2_controller_manager
-    pr2_mechanism_msgs
+    pr2_controller_manager  pr2_mechanism_msgs
+    moveit_core moveit_ros_planning_interface
+    tf2 tf2_ros
+    std_msgs message_runtime
 )
 find_package(Eigen REQUIRED)
 
@@ -111,6 +112,10 @@ link_directories(${catkin_LIBRARY_DIRS})
 ## Declare a cpp executable
 # add_executable(tactile_servoing_shadow_node src/tactile_servoing_shadow_node.cpp)
 add_executable(tactile_servo src/tactile_servoing.cpp)
+add_executable(finger_jacobian_service src/finger_jacobian_service.cpp)
+add_executable(sensor_tf_broadcaster src/sensor_tf_broadcaster.cpp)
+
+
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
@@ -121,6 +126,9 @@ add_executable(tactile_servo src/tactile_servoing.cpp)
 #   ${catkin_LIBRARIES}
 # )
 target_link_libraries(tactile_servo ${catkin_LIBRARIES} ${Boost_LIBRARIES})
+target_link_libraries(sensor_tf_broadcaster ${catkin_LIBRARIES})
+target_link_libraries(finger_jacobian_service ${catkin_LIBRARIES})
+
 
 #############
 ## Install ##
@@ -158,6 +166,10 @@ target_link_libraries(tactile_servo ${catkin_LIBRARIES} ${Boost_LIBRARIES})
 # )
 
 install(TARGETS tactile_servo DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
+install(TARGETS sensor_tf_broadcaster DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
+install(TARGETS finger_jacobian_service DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
+
+
 
 #############
 ## Testing ##
