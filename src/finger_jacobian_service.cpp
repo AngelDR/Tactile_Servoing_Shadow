@@ -102,8 +102,54 @@ void _j5Callback(const pr2_controllers_msgs::JointControllerState::ConstPtr& msg
   sharedKinematic_state->setJointPositions(joint_names[0],&vSet_point);
 }
 
+/**
+* Joint position callback: j5
+*/
+void fake_control_Callback(const sensor_msgs::JointState::ConstPtr& msg)
+{
+  const double vSet_point_1 = (double) msg->position[2];
+  const double vSet_point_2 = (double) msg->position[3];
+  const double vSet_point_3 = (double) msg->position[4];
+  const double vSet_point_4 = (double) msg->position[5];
+  ROS_INFO("First finger positions: %f,  %f,  %f,  %f", vSet_point_1,vSet_point_2, vSet_point_3, vSet_point_4);
+
+  const std::vector<std::string> &joint_names = joint_model->getJointModelNames();
+  // Actualizar first finger
+  sharedKinematic_state->setJointPositions(joint_names[0],&vSet_point_1);
+  sharedKinematic_state->setJointPositions(joint_names[1],&vSet_point_2);
+  sharedKinematic_state->setJointPositions(joint_names[2],&vSet_point_3);
+  sharedKinematic_state->setJointPositions(joint_names[3],&vSet_point_4);
+}
+
 bool jacobian_service(tactile_servoing_shadow::getFingerJacobianMatrix::Request &req, tactile_servoing_shadow::getFingerJacobianMatrix::Response &res)
 {
+  switch(req.finger_id){
+    case 1:
+     joint_model = sharedKinematic_model->getJointModelGroup("thumb");
+      //ROS_INFO("Joint model = thumb");
+     *tip_name = "thtip";
+     break;
+    case 2:
+     joint_model = sharedKinematic_model->getJointModelGroup("first_finger");
+       //ROS_INFO("Joint model = first finger");
+     *tip_name = "fftip";
+     break;
+    case 3:  
+     joint_model = sharedKinematic_model->getJointModelGroup("middle_finger");
+       //ROS_INFO("Joint model = middle finger");
+     *tip_name = "mftip";
+     break; 
+    case 4:
+     joint_model = sharedKinematic_model->getJointModelGroup("ring_finger");
+       //ROS_INFO("Joint model = ring finger");
+     *tip_name = "rftip";
+     break; 
+    case 5:
+     joint_model = sharedKinematic_model->getJointModelGroup("little_finger");
+       //ROS_INFO("Joint model = little finger");
+     *tip_name = "lftip";
+     break;
+  }
   Eigen::Vector3d reference_point_position(0.0,0.0,0.0);
   Eigen::MatrixXd jacobian;
   sharedKinematic_state->getJacobian(joint_model, sharedKinematic_state->getLinkModel(joint_model->getLinkModelNames().back()),
@@ -130,7 +176,7 @@ int main(int argc, char **argv)
   ros::Publisher jacobian_pub = nh.advertise<tactile_servoing_shadow::jacobian_matrix>("jacobian",1000);
   ros::ServiceServer service = nh.advertiseService("/GetJacobianMatrix", jacobian_service); 
   
-  //  definir subscribers
+  //  definir subscribers Mano Shadow real
   ros::Subscriber subs_Th_J1;
   ros::Subscriber subs_Th_J2;
   ros::Subscriber subs_Th_J3;
@@ -154,6 +200,9 @@ int main(int argc, char **argv)
   ros::Subscriber subs_Lf_J4;
   ros::Subscriber subs_Lf_J5;
   ROS_INFO("Subscribers iniciados");
+
+  // definir subscriber fake controller Shadow
+  ros::Subscriber subs_fake_controller;
   
   int finger;
   nh.getParam("/get_ik/dedo", finger);
@@ -161,6 +210,7 @@ int main(int argc, char **argv)
   tip_name = new std::string;
   ROS_INFO("Dedo a usar: %d", finger);
   
+  finger = 2;
   // Definir callbacks para cada joint publicada
   switch(finger){
     case 1:
@@ -193,6 +243,8 @@ int main(int argc, char **argv)
 	break;
   }
 
+  subs_fake_controller = nh.subscribe("/move_group/fake_controller_joint_states",1000, fake_control_Callback);
+
   // Cargar modelo
   robot_model_loader::RobotModelLoader robot_model_loader("robot_description");
   robot_model::RobotModelPtr kinematic_model = robot_model_loader.getModel();
@@ -204,29 +256,36 @@ int main(int argc, char **argv)
   sharedKinematic_state = kinematic_state;
   sharedKinematic_state->setToDefaultValues();
   
-  // Definir callbacks para cada joint publicada
+  /**
   switch(finger){
     case 1:
 	   joint_model = kinematic_model->getJointModelGroup("thumb");
+      ROS_INFO("Joint model = thumb");
 	   *tip_name = "thtip";
 	   break;
     case 2:
+    */
 	   joint_model = kinematic_model->getJointModelGroup("first_finger");
+      /** ROS_INFO("Joint model = first finger");
 	   *tip_name = "fftip";
 	   break;
     case 3:  
 	   joint_model = kinematic_model->getJointModelGroup("middle_finger");
+       ROS_INFO("Joint model = middle finger");
 	   *tip_name = "mftip";
 	   break; 
     case 4:
 	   joint_model = kinematic_model->getJointModelGroup("ring_finger");
+       ROS_INFO("Joint model = ring finger");
 	   *tip_name = "rftip";
 	   break;	
     case 5:
 	   joint_model = kinematic_model->getJointModelGroup("little_finger");
+       ROS_INFO("Joint model = little finger");
 	   *tip_name = "lftip";
 	   break;
   }
+  */
   ros::spin();
   return 0;
 }
