@@ -112,6 +112,7 @@ link_directories(${catkin_LIBRARY_DIRS})
 ## Declare a cpp executable
 # add_executable(tactile_servoing_shadow_node src/tactile_servoing_shadow_node.cpp)
 add_executable(tactile_servo src/tactile_servoing.cpp)
+add_executable(tactile_servo_hand src/tactile_servoing_hand.cpp)
 add_executable(finger_jacobian_service src/finger_jacobian_service.cpp)
 add_executable(sensor_tf_broadcaster src/sensor_tf_broadcaster.cpp)
 
@@ -126,6 +127,7 @@ add_executable(sensor_tf_broadcaster src/sensor_tf_broadcaster.cpp)
 #   ${catkin_LIBRARIES}
 # )
 target_link_libraries(tactile_servo ${catkin_LIBRARIES} ${Boost_LIBRARIES})
+target_link_libraries(tactile_servo_hand ${catkin_LIBRARIES} ${Boost_LIBRARIES})
 target_link_libraries(sensor_tf_broadcaster ${catkin_LIBRARIES})
 target_link_libraries(finger_jacobian_service ${catkin_LIBRARIES})
 
@@ -166,6 +168,7 @@ target_link_libraries(finger_jacobian_service ${catkin_LIBRARIES})
 # )
 
 install(TARGETS tactile_servo DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
+install(TARGETS tactile_servo_hand DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
 install(TARGETS sensor_tf_broadcaster DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
 install(TARGETS finger_jacobian_service DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
 
