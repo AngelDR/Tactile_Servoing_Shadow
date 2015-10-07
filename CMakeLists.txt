@@ -49,16 +49,8 @@ find_package(Boost REQUIRED system filesystem date_time thread)
 ##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
 
 ## Generate messages in the 'msg' folder
-add_message_files(
-   FILES
-    jacobian_matrix.msg
-)
 
 ## Generate services in the 'srv' folder
-add_service_files(
-   FILES
-   getFingerJacobianMatrix.srv
-)
 
 ## Generate actions in the 'action' folder
 # add_action_files(
@@ -68,10 +60,6 @@ add_service_files(
 # )
 
 ## Generate added messages and services with any dependencies listed here
-generate_messages(
-   DEPENDENCIES
-   std_msgs  # Or other packages containing msgs
-)
 
 ###################################
 ## catkin specific configuration ##
@@ -113,8 +101,8 @@ link_directories(${catkin_LIBRARY_DIRS})
 # add_executable(tactile_servoing_shadow_node src/tactile_servoing_shadow_node.cpp)
 add_executable(tactile_servo src/tactile_servoing.cpp)
 add_executable(tactile_servo_hand src/tactile_servoing_hand.cpp)
-add_executable(finger_jacobian_service src/finger_jacobian_service.cpp)
-add_executable(sensor_tf_broadcaster src/sensor_tf_broadcaster.cpp)
+#add_executable(finger_jacobian_service src/finger_jacobian_service.cpp)
+#add_executable(sensor_tf_broadcaster src/sensor_tf_broadcaster.cpp)
 
 
 
@@ -128,8 +116,8 @@ add_executable(sensor_tf_broadcaster src/sensor_tf_broadcaster.cpp)
 # )
 target_link_libraries(tactile_servo ${catkin_LIBRARIES} ${Boost_LIBRARIES})
 target_link_libraries(tactile_servo_hand ${catkin_LIBRARIES} ${Boost_LIBRARIES})
-target_link_libraries(sensor_tf_broadcaster ${catkin_LIBRARIES})
-target_link_libraries(finger_jacobian_service ${catkin_LIBRARIES})
+#target_link_libraries(sensor_tf_broadcaster ${catkin_LIBRARIES})
+#target_link_libraries(finger_jacobian_service ${catkin_LIBRARIES})
 
 
 #############
@@ -169,8 +157,8 @@ target_link_libraries(finger_jacobian_service ${catkin_LIBRARIES})
 
 install(TARGETS tactile_servo DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
 install(TARGETS tactile_servo_hand DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
-install(TARGETS sensor_tf_broadcaster DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
-install(TARGETS finger_jacobian_service DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
+#install(TARGETS sensor_tf_broadcaster DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
+#install(TARGETS finger_jacobian_service DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
 
 
 

@@ -2,6 +2,7 @@
 
 /* Author: Angel Delgado
  Organization: Universidad de Alicante
+ Comentarios: codigo provisional -> hacer modular
  */
 
 #include <pr2_mechanism_msgs/LoadController.h>
@@ -64,7 +65,6 @@ int main(int argc, char **argv)
   ros::AsyncSpinner spinner(1);
   spinner.start();
 
-
   // publishers para mano real
    // >> PUBLISHERS PARA CONTROLADORES DE POSICION
   ros::Publisher pos_ff_j0_pub = node_handle.advertise<std_msgs::Float64>("/sh_ffj0_position_controller/command", 1000);
@@ -93,7 +93,7 @@ int main(int argc, char **argv)
   ros::Publisher pos_wr_j1_pub = node_handle.advertise<std_msgs::Float64>("/sh_wrj1_position_controller/command", 1000);
   ros::Publisher pos_wr_j2_pub = node_handle.advertise<std_msgs::Float64>("/sh_wrj2_position_controller/command", 1000);
 
-  // Cargar modelo
+  // Cargar modelo (MoveIt)
   robot_model_loader::RobotModelLoader robot_model_loader("robot_description");
   robot_model::RobotModelPtr kinematic_model = robot_model_loader.getModel();
   ROS_INFO("Moveit Model : ok");
@@ -107,11 +107,7 @@ int main(int argc, char **argv)
   const robot_state::JointModelGroup* joint_model_rf;
   const robot_state::JointModelGroup* joint_model_lf;
   const robot_state::JointModelGroup* joint_model_th;
-  std::string tip_name_ff;
-  std::string tip_name_mf;
-  std::string tip_name_rf;
-  std::string tip_name_lf;
-  std::string tip_name_th;
+  std::string tip_name_ff,tip_name_mf,tip_name_rf,tip_name_lf,tip_name_th; 
   joint_model_ff = kinematic_model->getJointModelGroup("first_finger");
   tip_name_ff = "fftip";
   joint_model_mf = kinematic_model->getJointModelGroup("middle_finger");
@@ -158,7 +154,7 @@ int main(int argc, char **argv)
   }
   ROS_INFO("fake_states positions %i", fake_states.position.size());
 
-  
+  // >> posiciones iniciales
   pos_ff_j4_pub.publish(-0.05);
   sleep(0.1);
   pos_ff_j3_pub.publish(0.3);
@@ -197,22 +193,6 @@ int main(int argc, char **argv)
   sleep(0.1);
 
 
-  // >> Marker visualization forces
-  ros::Publisher vis_pub = node_handle.advertise<visualization_msgs::Marker>( "visualization_marker", 0 );
-  visualization_msgs::Marker marker;
-  marker.header.frame_id = "forearm";
-  marker.ns = "force_sensor";
-  marker.id = 0;
-  marker.type = visualization_msgs::Marker::ARROW;
-  marker.action = visualization_msgs::Marker::ADD;
-  marker.scale.x = 0.01;
-  marker.scale.y = 0.001;
-  marker.scale.z = 0.001;
-  marker.color.a = 1.0; // Don't forget to set the alpha!
-  marker.color.r = 0.0;
-  marker.color.g = 1.0;
-  marker.color.b = 0.0;
-
 
   /**
    * TACTILE SERVO:
@@ -223,7 +203,6 @@ int main(int argc, char **argv)
    *
    * Velocidades(q) = IK (VSensor(ref_origen))
   */
-
   control_toolbox::Pid pid_controller;
   MatrixXd projection_matrix(6,6);
   MatrixXd inverse_jacobian(6,4);
@@ -307,6 +286,7 @@ int main(int argc, char **argv)
   double var_pos = 0.1;  
 
 
+  // Archivos Log - plot
   ofstream vel_file, err_file, forces_file, desired_forces_file;
   vel_file.open ("/home/aurova/Desktop/pruebas/resultados/robot15/velocities.txt");
   if(vel_file.is_open())
@@ -324,7 +304,7 @@ int main(int argc, char **argv)
   if(desired_forces_file.is_open())
     ROS_INFO("Archivo de fuerzas deseadas abierto");
 
-  // Inicio bucle
+  // Inicio bucle Tactle servoing
   int iteration = 0;
   do
   {   
@@ -337,7 +317,7 @@ int main(int argc, char **argv)
       {
 
         /**
-        * Escribir restults
+        * Escribir results
         */
         forces_file << srv_pressure.response.applied_force[0] << " " << srv_pressure.response.applied_force[1] << " " << srv_pressure.response.applied_force[2] << " " << srv_pressure.response.applied_force[3] << " " << srv_pressure.response.applied_force[4] << " " << iteration << "\n";
         desired_forces_file << f_desired_th << " " << f_desired_ff << " " << f_desired_mf << " " << f_desired_rf << " " << f_desired_lf << " " << iteration << "\n";
@@ -368,8 +348,6 @@ int main(int argc, char **argv)
             iter++;
           }
         }
-        //double error_x = 1.0 - (double) max_position_i;
-        //double error_y = 2.0 - (double) max_position_j;
         // error en X e Y depende de las medidas del sensor. 17mm x 17mm
         // distancia entre cada celdilla -> x = 4mm; y 4mm
         double error_x = (max_position_i - 1) * 0.004;
@@ -551,31 +529,6 @@ int main(int argc, char **argv)
           ros::Duration(1.0).sleep();
           continue;
         }
-          
-        // Visualizacion forces
-        /**try{
-          ros::Time now = ros::Time::now();
-          tf::StampedTransform transform;
-          tfListener.waitForTransform("forearm", "ffsensor", now, ros::Duration(3.0));
-          tfListener.lookupTransform("forearm", "ffsensor", now, transform);
-          //ROS_INFO("Transformation  x = %f, y = %f, z = %f)", transform.getOrigin().getX(), transform.getOrigin().getY(), transform.getOrigin().getZ());
-          marker.header.stamp = ros::Time();
-          marker.pose.position.x = transform.getOrigin().getX();
-          marker.pose.position.y = transform.getOrigin().getY();
-          marker.pose.position.z = transform.getOrigin().getZ();
-          marker.pose.orientation.x = transform.getRotation().getX();
-          marker.pose.orientation.y = transform.getRotation().getY();
-          marker.pose.orientation.z = -1.58;//transform.getRotation().getZ();
-          marker.pose.orientation.w = transform.getRotation().getW();
-          // Mostrar tamaño flecha proporcional a fuerza
-          marker.scale.x = 0.01 * srv_pressure.response.applied_force[1];
-          vis_pub.publish( marker );
-        }catch (tf2::TransformException &ex) {
-          ROS_WARN("%s",ex.what());
-          ros::Duration(1.0).sleep();
-          continue;
-        }*/
-
         /**
         * --- FIRST FINGER
         */
@@ -610,8 +563,6 @@ int main(int argc, char **argv)
             iter++;
           }
         }
-        //double error_x = 1.0 - (double) max_position_i;
-        //double error_y = 2.0 - (double) max_position_j;
         // error en X e Y depende de las medidas del sensor. 17mm x 17mm
         // distancia entre cada celdilla -> x = 4mm; y 4mm
         error_x = (max_position_i - 1) * 0.004;
@@ -833,8 +784,6 @@ int main(int argc, char **argv)
             iter++;
           }
         }
-        //double error_x = 1.0 - (double) max_position_i;
-        //double error_y = 2.0 - (double) max_position_j;
         // error en X e Y depende de las medidas del sensor. 17mm x 17mm
         // distancia entre cada celdilla -> x = 4mm; y 4mm
         error_x = (max_position_i - 1) * 0.004;
@@ -1000,8 +949,7 @@ int main(int argc, char **argv)
           ROS_WARN("%s",ex.what());
           ros::Duration(1.0).sleep();
           continue;
-        }
-          
+        }         
         /**
         * --- RING FINGER
         */
@@ -1036,9 +984,6 @@ int main(int argc, char **argv)
             iter++;
           }
         }
-
-        //double error_x = 1.0 - (double) max_position_i;
-        //double error_y = 2.0 - (double) max_position_j;
         // error en X e Y depende de las medidas del sensor. 17mm x 17mm
         // distancia entre cada celdilla -> x = 4mm; y 4mm
         error_x = (max_position_i - 1) * 0.004;
@@ -1197,8 +1142,7 @@ int main(int argc, char **argv)
           ROS_WARN("%s",ex.what());
           ros::Duration(1.0).sleep();
           continue;
-        }
-          
+        }         
         /**
         * --- LITTLE FINGER
         */
@@ -1230,9 +1174,6 @@ int main(int argc, char **argv)
             iter++;
           }
         }
-
-        //double error_x = 1.0 - (double) max_position_i;
-        //double error_y = 2.0 - (double) max_position_j;
         // error en X e Y depende de las medidas del sensor. 17mm x 17mm
         // distancia entre cada celdilla -> x = 4mm; y 4mm
         error_x = (max_position_i - 1) * 0.004;
@@ -1421,7 +1362,6 @@ int main(int argc, char **argv)
                                    
         //sleep(2.0);
         // Comportamiento task planner:
-
         ros::spinOnce();
         if(stable && !stabilized)
         {
