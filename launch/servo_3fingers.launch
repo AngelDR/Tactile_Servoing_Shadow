@@ -1,0 +1,9 @@
+<launch>
+
+  <!-- Dynamic reconfiguration for object marker -->
+  <node name="tactile_servo_th" pkg="tactile_servoing_shadow" type="tactile_servo_node" respawn="false" output="screen" args="th"  >
+  </node>
+  <node name="tactile_servo_ff" pkg="tactile_servoing_shadow" type="tactile_servo_node" respawn="false" output="screen" args="ff"  >
+  </node>
+  
+</launch>

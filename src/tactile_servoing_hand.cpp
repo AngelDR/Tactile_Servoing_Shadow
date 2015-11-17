@@ -65,7 +65,15 @@ int main(int argc, char **argv)
   ros::AsyncSpinner spinner(1);
   spinner.start();
 
-  // publishers para mano real
+  // publishers error
+  ros::Publisher error_ff_pub = node_handle.advertise<std_msgs::Float64>("/error/ff", 1000);
+  ros::Publisher error_mf_pub = node_handle.advertise<std_msgs::Float64>("/error/mf", 1000);
+  ros::Publisher error_rf_pub = node_handle.advertise<std_msgs::Float64>("/error/rf", 1000);
+  ros::Publisher error_lf_pub = node_handle.advertise<std_msgs::Float64>("/error/lf", 1000);
+  ros::Publisher error_th_pub = node_handle.advertise<std_msgs::Float64>("/error/th", 1000);
+
+
+
    // >> PUBLISHERS PARA CONTROLADORES DE POSICION
   ros::Publisher pos_ff_j0_pub = node_handle.advertise<std_msgs::Float64>("/sh_ffj0_position_controller/command", 1000);
   ros::Publisher pos_ff_j3_pub = node_handle.advertise<std_msgs::Float64>("/sh_ffj3_position_controller/command", 1000);
@@ -155,7 +163,7 @@ int main(int argc, char **argv)
   ROS_INFO("fake_states positions %i", fake_states.position.size());
 
   // >> posiciones iniciales
-  pos_ff_j4_pub.publish(-0.05);
+  /**pos_ff_j4_pub.publish(-0.05);
   sleep(0.1);
   pos_ff_j3_pub.publish(0.3);
   sleep(0.1);
@@ -190,7 +198,7 @@ int main(int argc, char **argv)
   pos_th_j2_pub.publish(-0.698);
   sleep(0.1);
   pos_th_j1_pub.publish(0.261);
-  sleep(0.1);
+  sleep(0.1);*/
 
 
 
@@ -251,23 +259,26 @@ int main(int argc, char **argv)
   // >> PARAMETROS DE LOS EXPERIMENTOS
   // >> Obtener numero de dedos que se usan en el experimento -> rosparam
   int num_fingers_exp;
-  if (node_handle.getParam("/experimento/numero_dedos", num_fingers_exp))
+  if (node_handle.getParam("/grasp_reconfiguration/number_fingers", num_fingers_exp))
   {
     ROS_INFO("Numero de dedos para el experimento : %d", num_fingers_exp); 
+  }
+  else{
+      num_fingers_exp = 4;
   }
 
   /** Iniciar PID */
   /** (p,i,d,i_max, d_max)*/
-  pid_controller.initPid(0.5,0.0,0.0,0.0,0.0);
+  pid_controller.initPid(0.5,0.3,0.3,0.0,0.0);
   
   //double value_position = 0.8;
   //vel_ff_j3_pub.publish(value_position);
 
-  double f_desired_ff = 1.2;   // newtons
-  double f_desired_mf = 1.2;   // newtons
-  double f_desired_rf = 1.2;   // newtons
-  double f_desired_lf = 0.5;   // newtons
-  double f_desired_th = 1.2;   // newtons
+  double f_desired_ff = 0.3;   // newtons
+  double f_desired_mf = 0.3;   // newtons
+  double f_desired_rf = 0.3;   // newtons
+  double f_desired_lf = 0.3;   // newtons
+  double f_desired_th = 0.7;   // newtons
   double f_t_current = 0.0; 
   double f_t_previous= 0.0;
 
@@ -288,19 +299,19 @@ int main(int argc, char **argv)
 
   // Archivos Log - plot
   ofstream vel_file, err_file, forces_file, desired_forces_file;
-  vel_file.open ("/home/aurova/Desktop/pruebas/resultados/robot15/velocities.txt");
+  vel_file.open ("/home/aurova/Desktop/pruebas/resultados/tactile_servo/velocities.txt");
   if(vel_file.is_open())
     ROS_INFO("Archivo de velocidades abierto");
 
-  err_file.open ("/home/aurova/Desktop/pruebas/resultados/robot15/errors.txt");
+  err_file.open ("/home/aurova/Desktop/pruebas/resultados/tactile_servo/errors.txt");
   if(err_file.is_open())
     ROS_INFO("Archivo de errores abierto");
 
-  forces_file.open ("/home/aurova/Desktop/pruebas/resultados/robot15/forces.txt");
+  forces_file.open ("/home/aurova/Desktop/pruebas/resultados/tactile_servo/forces.txt");
   if(forces_file.is_open())
     ROS_INFO("Archivo de fuerzas abierto");
 
-  desired_forces_file.open ("/home/aurova/Desktop/pruebas/resultados/robot15/forces_des.txt");
+  desired_forces_file.open ("/home/aurova/Desktop/pruebas/resultados/tactile_servo/forces_des.txt");
   if(desired_forces_file.is_open())
     ROS_INFO("Archivo de fuerzas deseadas abierto");
 
@@ -308,6 +319,31 @@ int main(int argc, char **argv)
   int iteration = 0;
   do
   {   
+    if (node_handle.getParam("/tactile_servo_reconfiguration/ff_desired_f", f_desired_ff))
+    {
+      ROS_INFO("F deseada ff : %f", f_desired_ff); 
+    }
+
+    if (node_handle.getParam("/tactile_servo_reconfiguration/mf_desired_f", f_desired_mf))
+    {
+      ROS_INFO("F deseada mf : %f", f_desired_mf); 
+    }
+
+    if (node_handle.getParam("/tactile_servo_reconfiguration/rf_desired_f", f_desired_rf))
+    {
+      ROS_INFO("F deseada rf : %f", f_desired_rf); 
+    }
+
+    if (node_handle.getParam("/tactile_servo_reconfiguration/lf_desired_f", f_desired_lf))
+    {
+      ROS_INFO("F deseada lf : %f", f_desired_lf); 
+    }
+
+    if (node_handle.getParam("/tactile_servo_reconfiguration/th_desired_f", f_desired_th))
+    {
+      ROS_INFO("F deseada th : %f", f_desired_th); 
+    }
+
     
       fake_states.header.stamp = ros::Time::now();
       fake_states.header.frame_id = "fake_states";
@@ -329,6 +365,7 @@ int main(int argc, char **argv)
         double error_f = f_desired_ff - f_t_current;
         if((-0.1 < error_f) &&  (error_f < 0.1)){stable = true;}
         error_matrix(1,0) = error_f;
+        error_ff_pub.publish(error_f);
         // 2  - get pos(x,y) error
         // pos(x,y) desired = [1,2]
         double max_value = srv_pressure.response.ff_values[0];
@@ -382,7 +419,7 @@ int main(int argc, char **argv)
         try{
           ros::Time now = ros::Time::now();
           tf::StampedTransform transform_s;
-          tfListener.waitForTransform("palm", "ffsensor", now, ros::Duration(3.0));
+          tfListener.waitForTransform("palm", "ffsensor", now, ros::Duration(8.0));
           tfListener.lookupTransform("palm", "ffsensor", now, transform_s);
           //ROS_INFO("Transformation  x = %f, y = %f, z = %f)", transform.getOrigin().getX(), transform.getOrigin().getY(), transform.getOrigin().getZ());
           tf::Quaternion q = transform_s.getRotation();
@@ -509,8 +546,8 @@ int main(int argc, char **argv)
                 //fake_states.position.at(5) = fake_states.position.at(5) - 0.03;
             } */
 
-            fake_states.position.at(3) = fake_states.position.at(3) + (error_f * 0.05);
-            fake_states.position.at(4) = fake_states.position.at(4) + (error_f * 0.05);
+            fake_states.position.at(3) = fake_states.position.at(3) + (error_f * 0.5);
+            fake_states.position.at(4) = fake_states.position.at(4) + (error_f * 0.2);
 
 
             pos_ff_j3_pub.publish(fake_states.position.at(3));
@@ -544,6 +581,7 @@ int main(int argc, char **argv)
         error_f = f_desired_mf - f_t_current;
         if((-0.1 < error_f) &&  (error_f < 0.1)){stable = true;}
         error_matrix(1,0) = error_f;
+        error_mf_pub.publish(error_f);
         // 2  - get pos(x,y) error
         // pos(x,y) desired = [1,2]
         max_value = srv_pressure.response.mf_values[0];
@@ -728,8 +766,8 @@ int main(int argc, char **argv)
                 //fake_states.position.at(5) = fake_states.position.at(5) - 0.03;
             } */
 
-            fake_states.position.at(7) = fake_states.position.at(7) + (error_f * 0.05);
-            fake_states.position.at(8) = fake_states.position.at(8) + (error_f * 0.05);
+            fake_states.position.at(7) = fake_states.position.at(7) + (error_f * 0.5);
+            fake_states.position.at(8) = fake_states.position.at(8) + (error_f * 0.2);
 
 
             pos_mf_j3_pub.publish(fake_states.position.at(7));
@@ -765,6 +803,7 @@ int main(int argc, char **argv)
         error_f = f_desired_rf - f_t_current;
         //if(-0.05 < error_f < 0.05) {stable = true;}
         error_matrix(1,0) = error_f;
+        error_rf_pub.publish(error_f);
         // 2  - get pos(x,y) error
         // pos(x,y) desired = [1,2]
         max_value = srv_pressure.response.rf_values[0];
@@ -932,12 +971,12 @@ int main(int argc, char **argv)
               }
             }*/
 
-            /**fake_states.position.at(11) = fake_states.position.at(11) + (error_f * 0.05);
-            fake_states.position.at(12) = fake_states.position.at(12) + (error_f * 0.05);
+            fake_states.position.at(11) = fake_states.position.at(11) + (error_f * 0.5);
+            fake_states.position.at(12) = fake_states.position.at(12) + (error_f * 0.2);
             pos_rf_j3_pub.publish(fake_states.position.at(11));
             sleep(0.1);
             pos_rf_j0_pub.publish(fake_states.position.at(12));
-            sleep(0.1);*/ 
+            sleep(0.1); 
 
           }catch (tf2::TransformException &ex) {
             ROS_WARN("%s",ex.what());
@@ -965,6 +1004,7 @@ int main(int argc, char **argv)
         error_f = f_desired_lf - f_t_current;
         //if(-0.05 < error_f < 0.05) {stable = true;}
         error_matrix(1,0) = error_f;
+        error_lf_pub.publish(error_f);
         // 2  - get pos(x,y) error
         // pos(x,y) desired = [1,2]
         max_value = srv_pressure.response.lf_values[0];
@@ -1105,6 +1145,7 @@ int main(int argc, char **argv)
             //ROS_INFO_STREAM("Translation: \n" << end_effector_state.translation());
             //ROS_INFO_STREAM("Rotation: \n" << end_effector_state.rotation());
 
+            /**
             bool found_ik = kinematic_state->setFromIK(joint_model_lf, sensor_position, 2, 0.1);
             if (found_ik)
             {
@@ -1130,7 +1171,13 @@ int main(int argc, char **argv)
                 //fake_states.position.at(17) = fake_states.position.at(17) - 0.05;
                 //fake_states.position.at(18) = fake_states.position.at(18) - 0.05;
               }
-            }
+            }*/
+            fake_states.position.at(16) = fake_states.position.at(16) + (error_f * 0.5);
+            fake_states.position.at(17) = fake_states.position.at(17) + (error_f * 0.2);
+            pos_lf_j3_pub.publish(fake_states.position.at(16));
+            sleep(0.1);
+            pos_lf_j0_pub.publish(fake_states.position.at(17));
+            sleep(0.1); 
 
           }catch (tf2::TransformException &ex) {
             ROS_WARN("%s",ex.what());
@@ -1155,6 +1202,7 @@ int main(int argc, char **argv)
         error_f = f_desired_th - f_t_current;
         if((-0.1 < error_f) &&  (error_f < 0.1)){stable = true;}
         error_matrix(1,0) = error_f;
+        error_th_pub.publish(error_f);
         // 2  - get pos(x,y) error
         // pos(x,y) desired = [1,2]
         max_value = srv_pressure.response.th_values[0];
@@ -1333,10 +1381,13 @@ int main(int argc, char **argv)
                 //fake_states.position.at(5) = fake_states.position.at(5) - 0.03;
             }*/
 
-            fake_states.position.at(23) = fake_states.position.at(23) + (error_f * 0.05);
+            fake_states.position.at(23) = fake_states.position.at(23) + (error_f * 0.2);
+            fake_states.position.at(22) = fake_states.position.at(22) + (error_f * 0.5);
 
             pos_th_j1_pub.publish(fake_states.position.at(23));
-            sleep(0.1); 
+            sleep(0.1);
+            pos_th_j2_pub.publish(fake_states.position.at(22));
+            sleep(0.1);  
 
           }catch (tf2::TransformException &ex) {
             ROS_WARN("%s",ex.what());
@@ -1363,7 +1414,8 @@ int main(int argc, char **argv)
         //sleep(2.0);
         // Comportamiento task planner:
         ros::spinOnce();
-        if(stable && !stabilized)
+        
+        /**if(stable && !stabilized)
         {
           if(srv_pressure.response.applied_force[1] == 0){ f_desired_ff = 0.3;}
           else{f_desired_ff = srv_pressure.response.applied_force[1];}
@@ -1377,7 +1429,7 @@ int main(int argc, char **argv)
           //if(srv_pressure.response.applied_force[3] == 0){ f_desired_rf = 0.3;}
           //else{f_desired_rf = srv_pressure.response.applied_force[3];} 
           stabilized = true;
-        }
+        }*/
 
       }
       else
