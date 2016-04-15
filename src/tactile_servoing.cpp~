@@ -14,7 +14,7 @@
 
 #include "std_msgs/Float64.h"
 #include "tekscan_client/GetPressureMap.h"
-//#include "tactile_servoing_shadow/getFingerJacobianMatrix.h" 
+#include "tactile_servoing_shadow/getFingerJacobianMatrix.h" 
 
 #include <iostream>
 #include <fstream>
@@ -92,9 +92,9 @@ int main(int argc, char **argv)
   srv_pressure.request.num = 0;
 
   // >> FINGER JACOBIAN SERVICE 
-  //ros::ServiceClient jacobian_client = node_handle.serviceClient<tactile_servoing_shadow::getFingerJacobianMatrix>("GetJacobianMatrix");
-  //tactile_servoing_shadow::getFingerJacobianMatrix srv_jacobian;
-  //srv_jacobian.request.finger_id = 2;
+  ros::ServiceClient jacobian_client = node_handle.serviceClient<tactile_servoing_shadow::getFingerJacobianMatrix>("GetJacobianMatrix");
+  tactile_servoing_shadow::getFingerJacobianMatrix srv_jacobian;
+  srv_jacobian.request.finger_id = 2;
 
   // >> PUBLISHER PARA FAKE CONTROLLER -> SIMULACION
   ros::Publisher fake_controller = node_handle.advertise<sensor_msgs::JointState>("/move_group/fake_controller_joint_states", 1000);

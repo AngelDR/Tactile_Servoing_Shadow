@@ -1419,9 +1419,9 @@ std_msgs::Float64 wr_j2_val;
 	th_j1_val.data = fake_states.position.at(23);
 	th_j2_val.data = fake_states.position.at(22);
 
-            pos_th_j1_pub.publish(th_j1_val);
+            pos_th_j1_pub.publish(fake_states.position.at(23));
             sleep(0.1);
-            pos_th_j2_pub.publish(th_j2_val);
+            pos_th_j2_pub.publish(fake_states.position.at(22));
             sleep(0.1);  
 
           }catch (tf2::TransformException &ex) {
