@@ -14,7 +14,7 @@
 #include <tf2/LinearMath/Matrix3x3.h>
 
 #include "std_msgs/Float64.h"
-#include "tekscan_client/GetPressureMap.h"
+//s#include "tekscan_client/GetPressureMap.h"
 //#include "tactile_servoing_shadow/getFingerJacobianMatrix.h" 
 
 #include <iostream>
@@ -80,13 +80,20 @@ public:
     pixel_size = 0.0025;
     virtual_image_width = 3.1415 * radio_cylinder;
     zero_value = 3300;
+    
+    ROS_INFO("Initial params: ok");
 
     // CARTESIAN COORDINATES
     // Matriz con posiciones de los electrodos:
     // TODO: cargar desde archivo
-    tactel_cartesian_coordinates(NUM_TACTELS,6);
+    //tactel_cartesian_coordinates(19,6);
+    //tactel_cylindrical_coordinates(19,3);
+    //tactel_plane_coordinates(19,2);
+    ROS_INFO("Array definition : ok");
+    tactel_cartesian_coordinates = ArrayXXf::Zero(NUM_TACTELS,6);
     tactel_cylindrical_coordinates = ArrayXXf::Zero(NUM_TACTELS, 3);
     tactel_plane_coordinates = ArrayXXf::Zero(NUM_TACTELS, 2);
+    ROS_INFO("Initializing arrays: ok");
 
     tactel_cartesian_coordinates << 
     0.993, -4.855, -1.116, 0.196, -0.956, -0.220,
@@ -108,6 +115,8 @@ public:
     -2.800, 0.000, -5.080, 0.000, 0.000, -1.000,
     -9.800, 0.000, -5.080, 0.000, 0.000, -1.000,
     -13.600, 0.000, -5.080, 0.000, 0.000, -1.000;
+    
+    ROS_INFO("Cartesian coordinates from electrode coordinates: ok");
 
     // Escalar valores: mm -> m 
     tactel_cartesian_coordinates = tactel_cartesian_coordinates * 0.001;
@@ -118,7 +127,7 @@ public:
     }
     // Cambiar de signo coordenada z, para facilitar conversion a coord. cilindricas
     tactel_cartesian_coordinates.col(2) = tactel_cartesian_coordinates.col(2) * -1.0;
-
+    ROS_INFO("Cartesian coordinates: ok");
 
     // CYLINDER COORDINATES
     // radio_cilindro - angulo -  posicion x
@@ -139,7 +148,7 @@ public:
       else
         tactel_cylindrical_coordinates(i,1) = 3.1415 - angle;
     }
-
+    ROS_INFO("Cylinder coordinates: ok");
 
     // PLANE COORDINATES
     /**
@@ -152,11 +161,13 @@ public:
     tactel_plane_coordinates.col(0) = tactel_cylindrical_coordinates.col(2);
     tactel_plane_coordinates.col(1) = tactel_cylindrical_coordinates.col(1) * (virtual_image_width/3.1415);
 
+    ROS_INFO("Plane coordinates: ok");
     
     // INCIALIZAR IMAGEN VIRTUAL DEPENDIENDO DEL TAMANHO DE PIXEL
     pixels_vertical = round(virtual_image_height/pixel_size)+1;
     pixels_horizontal = round(virtual_image_width/pixel_size)+1;
     virtual_image =  ArrayXXf::Zero(pixels_vertical,pixels_horizontal);  
+    ROS_INFO("Virtual image created.. ");
 
     // MAPEAR POSICIONES ELECTRODOS A POSICIONES PIXELS
     tactel_pixels_positions =  ArrayXXf::Zero(NUM_TACTELS,2);
@@ -172,10 +183,11 @@ public:
         tactel_pixels_positions(it,0) = pos_x+1;
         tactel_pixels_positions(it,1) = pos_y;
     }
+    ROS_INFO("Mapping from tactel positions to pixels : ok");
 
     // CREAR MATRIZ DE KNN: [[indice_electrodo_vecino,...]  [distancia_electrodo_vecino,...] ]
     nearest_neighbors_positions =  ArrayXXf::Zero(NUM_TACTELS,2*NUM_NEIGHBORS);  
-    MatrixXf partial_neighbors_matrix;
+    MatrixXf partial_neighbors_matrix = ArrayXXf::Zero(2,NUM_NEIGHBORS);
 
     for(int i=0; i<NUM_TACTELS; i++){
       // Inicializar vector_indices y vector_distancias = max_distance
@@ -204,7 +216,10 @@ public:
         nearest_neighbors_positions(i,j)= vector_indices(0,j);
         nearest_neighbors_positions(i,j+NUM_NEIGHBORS) = vector_distances(0,j);      
       }
+      
     }
+    
+    ROS_INFO("Neighbor matrix: ok ");
 
   } // End constructor node
 
@@ -217,12 +232,14 @@ public:
     MatrixXf output_matrix =  ArrayXXf::Zero(2,NUM_NEIGHBORS);
  
     double minimum_value = old_vector_distances(0,0);
-    int iteration;
+    int iteration = 0;
     double current_size;
     int position_of_minimum = 0;
 
     for(int i=0; i<NUM_NEIGHBORS; i++){
       current_size = old_vector_indices.cols();
+      minimum_value = old_vector_distances(0,0);
+      position_of_minimum = 0;
       for(int position=0; position<current_size; position++){
         if(old_vector_distances(position) < minimum_value){
           position_of_minimum = position;
@@ -230,22 +247,25 @@ public:
         }
       }
 
+
       // insertar en salida
-      output_matrix(0,iteration) = old_vector_indices(0,position_of_minimum);
-      output_matrix(1,iteration) = old_vector_distances(0,position_of_minimum);
+      output_matrix(0,iteration) = old_vector_indices(position_of_minimum);
+      output_matrix(1,iteration) = old_vector_distances(position_of_minimum);
       iteration++;
+
 
       // Borrar de old vector
       removeColumn(old_vector_indices,position_of_minimum);
       removeColumn(old_vector_distances,position_of_minimum);
     }
-
+    
     return output_matrix;
   }
 
   // Function eliminar columna de matriz
   void removeColumn(MatrixXf& matrix, unsigned int colToRemove)
   {
+
     unsigned int numRows = matrix.rows();
     unsigned int numCols = matrix.cols()-1;
 
@@ -308,6 +328,12 @@ public:
       j5_pub = a->n.advertise<std_msgs::Float64>(j5_name, 1000);
 
     a->n.getParam(tactile_param,tactile_values);
+    
+    ROS_INFO("Tactile raw values: \n");
+    for(unsigned i=0; i<tactile_values.size();i++){
+        ROS_INFO(" %f",tactile_values[i]);
+    }
+    ROS_INFO(" \n");
   }
 
 };
@@ -329,6 +355,7 @@ int main(int argc, char **argv)
   tf2_ros::Buffer tfBuffer;
   tf::TransformListener tfListener; 
   geometry_msgs::TransformStamped ff_transf;  
+  ROS_INFO("ROS node initialization: ok");
   
 
   /**
@@ -337,6 +364,7 @@ int main(int argc, char **argv)
   */
 
   do{
+    ROS_INFO("Tactile servo loop started... ");
 
     Finger* current_finger;
 
@@ -379,15 +407,16 @@ int main(int argc, char **argv)
           break;}
       }
 
-
+      ROS_INFO("Finger initialization: ok");
 
       /**
       *  INICIALIZAR VALORES DE IMAGEN TACTIL
       */
       for(int i=0; i<NUM_TACTELS; i++){ 
-        a->virtual_image(a->tactel_pixels_positions(i,0),a->tactel_pixels_positions(i,0)) = current_finger->tactile_values[i];
+        a->virtual_image(a->tactel_pixels_positions(i,0),a->tactel_pixels_positions(i,1)) = current_finger->tactile_values[i];
       }
-
+      ROS_INFO("Tactile image: ok");
+     
       /**
       * - NORMALIZAR IMAGEN -> gray (0,255)
       * - OBTENER IMAGEN COMPLEMENTARIA
@@ -399,7 +428,7 @@ int main(int argc, char **argv)
           a->virtual_image(i,j) = 255 - a->virtual_image(i,j); 
         }
       }
-
+      ROS_INFO("Normalized tactile image: ok");
 
       /**
       * CREAR ARRAY DE VALORES DE LO KNN
@@ -412,6 +441,7 @@ int main(int argc, char **argv)
           a->nearest_neighbors_values(i,j) = current_finger->tactile_values[(a->nearest_neighbors_positions(i,j))-1]; 
         }
       }  
+      ROS_INFO("Current array of neighbors for tactile image: ok");
 
 
       /**
@@ -436,6 +466,7 @@ int main(int argc, char **argv)
         }
         a->deviations_array(i,0) = gaussian_deviation_value / NUM_NEIGHBORS;
       }
+      ROS_INFO("Dynamic gaussian deviation values: ok");
 
 
       /**
@@ -473,6 +504,10 @@ int main(int argc, char **argv)
           a->mixture_gaussian_image(i,j) = value_i_j;
         }
       }// End for exterior
+      
+      ROS_INFO("Gaussian mixture tactile image: ok");
+      
+      ROS_INFO_STREAM("IMAGE: \n" << a->mixture_gaussian_image);
 
 
 
@@ -487,7 +522,7 @@ int main(int argc, char **argv)
 
     }
 
-  }while(true);
+  }while(ros::ok);
 
 }
 
