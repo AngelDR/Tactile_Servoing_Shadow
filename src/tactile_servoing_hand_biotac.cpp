@@ -67,6 +67,10 @@ public:
   MatrixXf nearest_neighbors_positions;
   MatrixXf nearest_neighbors_values;
   MatrixXf deviations_array;
+  MatrixXf error_matrix;
+  MatrixXf error_vector;
+  MatrixXf tactile_gaussian_interaction_matrix;
+  MatrixXf output_velocity;
 
 
 
@@ -356,12 +360,22 @@ int main(int argc, char **argv)
   tf::TransformListener tfListener; 
   geometry_msgs::TransformStamped ff_transf;  
   ROS_INFO("ROS node initialization: ok");
-  
+
+
+  // Crear tactile interaction matrix
+  a->tactile_gaussian_interaction_matrix = ArrayXXf::Zero(3, a->pixels_vertical*a->pixels_horizontal);
+  for(int i=0; i<3; i++){
+    for(int j=0; j< (a->pixels_vertical*a->pixels_horizontal); j++){
+      a->tactile_gaussian_interaction_matrix(i,j) = 1;
+    }
+  }
 
   /**
   *  BUCLE OBTENCION IMAGEN  -  TACTILE CONTROL
   *
   */
+  // Inicializar velocidad salida (Vx, Vy, Vz)
+  a->output_velocity = ArrayXXf::Zero(3, 1);
 
   do{
     ROS_INFO("Tactile servo loop started... ");
@@ -519,6 +533,31 @@ int main(int argc, char **argv)
       *
       */
 
+      /**
+      * 
+      *
+      * GET ERROR MATRIX -> VECTOR
+      */
+      a->error_matrix = ArrayXXf::Zero(a->pixels_vertical, a->pixels_horizontal);
+      a->error_vector = ArrayXXf::Zero(a->pixels_vertical * a->pixels_horizontal,1);
+
+      a->error_matrix = a->mixture_gaussian_image - a->mixture_gaussian_image;
+      ROS_INFO_STREAM("ERROR: \n" << a->error_matrix);
+
+      int position = 0;
+      for(int i=0; i<a->pixels_vertical; i++){
+        for(int j=0; j<a->pixels_horizontal; j++){
+          a->error_vector(position) = a->error_matrix(i,j);
+          position++;
+        }
+      }
+
+      /**
+      * 
+      * APPLY CONTROL LAW:
+      * Interaction matrix defined in initialization
+      */
+      a->output_velocity = a->tactile_gaussian_interaction_matrix * a->error_vector;
 
     }
 
