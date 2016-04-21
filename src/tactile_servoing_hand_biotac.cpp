@@ -19,10 +19,12 @@
 
 #include <iostream>
 #include <fstream>
+#include <string>
 #include <Eigen/Dense>
 #include <Eigen/SVD> 
 #include <control_toolbox/pid.h>
 #include <math.h> 
+#include <stdlib.h>  
 
  // MoveIt!
 #include <moveit/robot_model_loader/robot_model_loader.h>
@@ -42,6 +44,7 @@ using namespace std;
 #define NUM_NEIGHBORS 5
 #define ZERO_VALUE 3300
 #define IMAGE_RANK 255
+#define PATH_FILE_DESIRED_FEATURES "/home/anxo/projects/shadow_robot/base_deps/src/tactile_servoing_shadow/files/desired_tactile_data.txt"
 
 class NodeClass {
 
@@ -63,7 +66,9 @@ public:
   MatrixXf tactel_plane_coordinates;
   MatrixXf tactel_pixels_positions;
   MatrixXf virtual_image;
+  MatrixXf virtual_desired_image;
   MatrixXf mixture_gaussian_image;
+  MatrixXf desired_mixture_gaussian_image;
   MatrixXf nearest_neighbors_positions;
   MatrixXf nearest_neighbors_values;
   MatrixXf deviations_array;
@@ -225,7 +230,136 @@ public:
     
     ROS_INFO("Neighbor matrix: ok ");
 
+
+    // Crear imagen deseada
+    initDesiredImage();
+
   } // End constructor node
+
+
+  void initDesiredImage(){
+    string line;
+    std::vector<double> tactile_values;
+    ifstream desired_tactile_file(PATH_FILE_DESIRED_FEATURES);
+    if (desired_tactile_file.is_open())
+    {
+      getline (desired_tactile_file,line);
+      stringstream ss(line);
+      string word;
+
+      while (getline(ss, word, ' ')) {
+        char c[1024];
+        strcpy(c, word.c_str());
+        tactile_values.push_back(atof(c));
+
+      }
+    }
+    desired_tactile_file.close();
+
+
+    // Crear imagen:
+    /**
+    *  INICIALIZAR VALORES DE IMAGEN TACTIL
+    */
+    virtual_desired_image =  ArrayXXf::Zero(pixels_vertical,pixels_horizontal);  
+    for(int i=0; i<NUM_TACTELS; i++){ 
+      virtual_desired_image(tactel_pixels_positions(i,0),tactel_pixels_positions(i,1)) = tactile_values[i];
+    }
+    ROS_INFO("Tactile desired image: ok");
+   
+    /**
+    * - NORMALIZAR IMAGEN -> gray (0,255)
+    * - OBTENER IMAGEN COMPLEMENTARIA
+    */
+    virtual_desired_image *= IMAGE_RANK;
+    virtual_desired_image /= ZERO_VALUE;
+    for(int i=0; i < virtual_desired_image.rows();i++){
+      for(int j=0; j < virtual_desired_image.cols();j++){
+        virtual_desired_image(i,j) = 255 - virtual_desired_image(i,j); 
+      }
+    }
+    ROS_INFO("Normalized tactile desired image: ok");
+
+    /**
+    * CREAR ARRAY DE VALORES DE LO KNN
+    * size: num_tactels x num_neigh
+    */
+    nearest_neighbors_values =  ArrayXXf::Zero(NUM_TACTELS,NUM_NEIGHBORS);
+    for(int i=0; i < NUM_TACTELS; i++){
+      for(int j=0; j < NUM_NEIGHBORS; j++){
+        // Asignar valores de los vecinos. En nearest_neighbor_positions guardo el indice (1-19) -> en vector (0-18)
+        nearest_neighbors_values(i,j) = tactile_values[(nearest_neighbors_positions(i,j))-1]; 
+      }
+    }  
+    ROS_INFO("Current array of neighbors for tactile image: ok");
+
+
+    /**
+    * OBTENER VALORES DE DESVIACION PARA CADA GAUSSIANA DEPENDIENTES DE LOS VECINOS   
+    * max_distance = sqrt((pixels_horiz.^2)   +  (pixels_vertical.^2)  );
+    * obtener valor gaussiana para cada electrodo. Inversamente
+    * proporcional a la distanci y directamente proporcional al valor de
+    * cada uno de los electrodos incluidos dentro de los k-nn. Media de los
+    * valores.
+    *
+    */
+    double max_distance = sqrt((pow(pixels_horizontal,2))   +  (pow(pixels_vertical,2))  );
+    deviations_array = ArrayXXf::Zero(NUM_TACTELS,1);
+    double gaussian_deviation_value, distance_factor, gray_normalized_value;
+    for(int i=0; i < NUM_TACTELS; i++){
+      gaussian_deviation_value = 0;
+      for(int j=0; j<NUM_NEIGHBORS; j++){
+        distance_factor = nearest_neighbors_positions(i,NUM_NEIGHBORS+j) / max_distance;
+        // normalizar valor del pixel
+        gray_normalized_value = (nearest_neighbors_values(i,j) * pixels_vertical) / 255;
+        gaussian_deviation_value = gaussian_deviation_value + (gray_normalized_value * distance_factor);
+      }
+      deviations_array(i,0) = gaussian_deviation_value / NUM_NEIGHBORS;
+    }
+    ROS_INFO("Dynamic gaussian deviation values for desired image: ok");
+
+
+    /**
+    * 
+    *
+    * MIXTURE OF GAUSSIAN METHOD
+    */
+    desired_mixture_gaussian_image = ArrayXXf::Zero(pixels_vertical, pixels_horizontal);
+    double value_i_j;
+    int index_tactel;
+
+    for(int i=0; i<pixels_vertical; i++){
+      for(int j=0; j<pixels_horizontal; j++){
+        value_i_j = 0;
+
+        // Recorrer imagen dando valores a cada pixel dependiendo de la suma de gaussianas dinamica en cada punto. Valores 0, descartados
+        for(int ui=0; ui<pixels_vertical; ui++){
+          for(int uj=0; uj<pixels_horizontal; uj++){
+            if(virtual_desired_image(ui,uj) != 0){
+              index_tactel = getIndexTactel(ui,uj);
+              if(index_tactel!=0)
+                value_i_j += virtual_desired_image(ui,uj) * ( 
+                                  exp(
+                                    (-1) *
+                                    ( (pow(i-ui,2)) + (pow(j-uj,2)) )
+                                        /
+                                    (2 * pow(deviations_array(index_tactel),2) )
+                                    )
+                                                      );                          
+            }
+
+          }
+        } // End for interior
+
+        desired_mixture_gaussian_image(i,j) = value_i_j;
+      }
+    }// End for exterior
+    
+    ROS_INFO("Desired Gaussian mixture tactile image: ok");
+
+
+
+  }
 
 
   // Funcion para ordenar matriz de vecinos
@@ -541,7 +675,7 @@ int main(int argc, char **argv)
       a->error_matrix = ArrayXXf::Zero(a->pixels_vertical, a->pixels_horizontal);
       a->error_vector = ArrayXXf::Zero(a->pixels_vertical * a->pixels_horizontal,1);
 
-      a->error_matrix = a->mixture_gaussian_image - a->mixture_gaussian_image;
+      a->error_matrix = a->mixture_gaussian_image - a->desired_mixture_gaussian_image;
       ROS_INFO_STREAM("ERROR: \n" << a->error_matrix);
 
       int position = 0;
