@@ -24,7 +24,10 @@
 #include <Eigen/SVD> 
 #include <control_toolbox/pid.h>
 #include <math.h> 
-#include <stdlib.h>  
+#include <stdlib.h>
+
+// Control
+#include <control_toolbox/pid.h>
 
  // MoveIt!
 #include <moveit/robot_model_loader/robot_model_loader.h>
@@ -72,9 +75,8 @@ public:
   MatrixXf nearest_neighbors_positions;
   MatrixXf nearest_neighbors_values;
   MatrixXf deviations_array;
-  MatrixXf error_matrix;
   MatrixXf error_vector;
-  MatrixXf tactile_gaussian_interaction_matrix;
+  MatrixXf tactile_position_interaction_matrix;
   MatrixXf output_velocity;
 
 
@@ -467,11 +469,13 @@ public:
 
     a->n.getParam(tactile_param,tactile_values);
     
+    /**
     ROS_INFO("Tactile raw values: \n");
     for(unsigned i=0; i<tactile_values.size();i++){
         ROS_INFO(" %f",tactile_values[i]);
     }
     ROS_INFO(" \n");
+    */
   }
 
 };
@@ -488,6 +492,14 @@ int main(int argc, char **argv)
   NodeClass* a = new NodeClass();
   ros::AsyncSpinner spinner(1);
   spinner.start();
+  control_toolbox::Pid pid_controller;
+  /** Iniciar PID */
+  /** (p,i,d,i_max, d_max)*/
+  pid_controller.initPid(0.5,0.3,0.3,0.0,0.0);
+  ros::Time current_time;
+  ros::Time last_time = ros::Time::now(); 
+  char* name_finger;
+
 
   // Clases para transformaciones con tf2
   tf2_ros::Buffer tfBuffer;
@@ -495,25 +507,44 @@ int main(int argc, char **argv)
   geometry_msgs::TransformStamped ff_transf;  
   ROS_INFO("ROS node initialization: ok");
 
+  // Inicializar velocidad salida (Vx, Vy, Vz)
+  a->output_velocity = ArrayXXf::Zero(3, 1);
 
-  // Crear tactile interaction matrix
-  a->tactile_gaussian_interaction_matrix = ArrayXXf::Zero(3, a->pixels_vertical*a->pixels_horizontal);
-  for(int i=0; i<3; i++){
-    for(int j=0; j< (a->pixels_vertical*a->pixels_horizontal); j++){
-      a->tactile_gaussian_interaction_matrix(i,j) = 1;
+  // Obtener caraacteristicas para error desde imagen deseada:
+
+  // Get sum values and resultant position of force for desired image:
+  double desired_image_sum;
+  double desired_sum_fx, desired_sum_fy;
+  int desired_pos_x, desired_pos_y;
+  for(int i=0; i<a->pixels_vertical; i++){
+    for(int j=0; j<a->pixels_horizontal; j++){
+      desired_image_sum += a->desired_mixture_gaussian_image(i,j);
     }
   }
+  for(int i=0; i<a->pixels_vertical; i++){
+    for(int j=0; j<a->pixels_horizontal; j++){
+      desired_sum_fx += i * (a->desired_mixture_gaussian_image(i,j));
+      desired_sum_fy += j * (a->desired_mixture_gaussian_image(i,j));
+    }
+  }
+  desired_pos_x = round(desired_sum_fx / desired_image_sum);
+  desired_pos_y = round(desired_sum_fy / desired_image_sum);
+
+  // Crear matriz de interaccion relacionada a posicion tactil
+  a->tactile_position_interaction_matrix = ArrayXXf::Zero(3,3);
+  a->tactile_position_interaction_matrix << 1,0,0,
+                                            0,1,0,
+                                            0.5, 0.5, 1;
+
+
 
   /**
   *  BUCLE OBTENCION IMAGEN  -  TACTILE CONTROL
   *
   */
-  // Inicializar velocidad salida (Vx, Vy, Vz)
-  a->output_velocity = ArrayXXf::Zero(3, 1);
-
+  ROS_INFO("Tactile servo loop started... ");
+  
   do{
-    ROS_INFO("Tactile servo loop started... ");
-
     Finger* current_finger;
 
     for(int finger = 0; finger < 5; finger++){
@@ -524,6 +555,7 @@ int main(int argc, char **argv)
           {current_finger = new Finger("-","/sh_thj1_position_controller/command","/sh_thj2_position_controller/command",
                     "/sh_thj3_position_controller/command","/sh_thj4_position_controller/command","/sh_thj5_position_controller/command",
                     "/biotac_electrodes_th",a);
+          name_finger = "Thumb";
           break;}
 
         // 1: first
@@ -531,6 +563,7 @@ int main(int argc, char **argv)
           {current_finger = new Finger("/sh_ffj0_position_controller/command","-","-",
                     "/sh_ffj3_position_controller/command","/sh_ffj4_position_controller/command","-",
                     "/biotac_electrodes_ff",a);
+          name_finger = "Index";
           break;}
 
         // 2: middle
@@ -538,6 +571,7 @@ int main(int argc, char **argv)
           {current_finger = new Finger("/sh_mfj0_position_controller/command","-","-",
                     "/sh_mfj3_position_controller/command","/sh_mfj4_position_controller/command","-",
                     "/biotac_electrodes_mf",a);
+          name_finger = "Middle";
           break;}
 
         // 3: ring
@@ -545,6 +579,7 @@ int main(int argc, char **argv)
           {current_finger = new Finger("/sh_rfj0_position_controller/command","-","-",
                     "/sh_rfj3_position_controller/command","/sh_rfj4_position_controller/command","-",
                     "/biotac_electrodes_rf",a);
+          name_finger = "Ring";
           break;}
 
         // 4: little
@@ -552,9 +587,11 @@ int main(int argc, char **argv)
           {current_finger = new Finger("/sh_lfj0_position_controller/command","-","-",
                     "/sh_lfj3_position_controller/command","/sh_lfj4_position_controller/command","/sh_lfj5_position_controller/command",
                     "/biotac_electrodes_lf",a);
+          name_finger = "Little";
           break;}
       }
 
+      ROS_INFO(">> %s",name_finger);
       ROS_INFO("Finger initialization: ok");
 
       /**
@@ -654,7 +691,6 @@ int main(int argc, char **argv)
       }// End for exterior
       
       ROS_INFO("Gaussian mixture tactile image: ok");
-      
       ROS_INFO_STREAM("IMAGE: \n" << a->mixture_gaussian_image);
 
 
@@ -669,31 +705,50 @@ int main(int argc, char **argv)
 
       /**
       * 
+      * GET ERROR -> VECTOR (ex, ey, em)
+      * get position of the contact: resultant of the applied forces, position and magnitude
       *
-      * GET ERROR MATRIX -> VECTOR
+      *
       */
-      a->error_matrix = ArrayXXf::Zero(a->pixels_vertical, a->pixels_horizontal);
-      a->error_vector = ArrayXXf::Zero(a->pixels_vertical * a->pixels_horizontal,1);
-
-      a->error_matrix = a->mixture_gaussian_image - a->desired_mixture_gaussian_image;
-      ROS_INFO_STREAM("ERROR: \n" << a->error_matrix);
-
-      int position = 0;
+      // Get sum values and resultant position of force for currente image:
+      double image_sum;
+      double sum_fx, sum_fy;
+      int resultant_pos_x, resultant_pos_y;
       for(int i=0; i<a->pixels_vertical; i++){
         for(int j=0; j<a->pixels_horizontal; j++){
-          a->error_vector(position) = a->error_matrix(i,j);
-          position++;
+          image_sum += a->mixture_gaussian_image(i,j);
         }
       }
+      for(int i=0; i<a->pixels_vertical; i++){
+        for(int j=0; j<a->pixels_horizontal; j++){
+          sum_fx += i * (a->mixture_gaussian_image(i,j));
+          sum_fy += j * (a->mixture_gaussian_image(i,j));
+        }
+      }
+      resultant_pos_x = round(sum_fx / image_sum);
+      resultant_pos_y = round(sum_fy / image_sum);
+
+      // get error vector
+      a->error_vector =  ArrayXXf::Zero(3,1);
+      a->error_vector(0,0) =  desired_pos_x - resultant_pos_x;
+      a->error_vector(1,0) =  desired_pos_y - resultant_pos_y;
+      a->error_vector(2,0) =  desired_image_sum - image_sum; 
+
 
       /**
       * 
       * APPLY CONTROL LAW:
       * Interaction matrix defined in initialization
       */
-      a->output_velocity = a->tactile_gaussian_interaction_matrix * a->error_vector;
+      // Aplicar PID a errores
+      ros::Time current_time = ros::Time::now(); 
+      a->error_vector(0,0) = pid_controller.updatePid(a->error_vector(0,0), current_time - last_time);
+      a->error_vector(1,0) = pid_controller.updatePid(a->error_vector(1,0), current_time - last_time);
+      a->error_vector(2,0) = pid_controller.updatePid(a->error_vector(2,0), current_time - last_time);
+      last_time = current_time;
 
-      
+      a->output_velocity = a->tactile_position_interaction_matrix * a->error_vector;
+      ROS_INFO_STREAM("OUTPUT FINGER VELOCITY: \n" << a->output_velocity);      
 
     }
 

@@ -102,7 +102,9 @@ link_directories(${catkin_LIBRARY_DIRS})
 #add_executable(tactile_servo src/tactile_servoing.cpp)
 add_executable(tactile_servo_hand src/tactile_servoing_hand.cpp)
 add_executable(tactile_servo_node src/tactile_servo_node.cpp)
-add_executable(tactile_servo_hand_biotac src/tactile_servoing_hand_biotac.cpp)
+add_executable(tactile_servo_hand_biotac_gaussian src/tactile_servoing_hand_biotac.cpp)
+add_executable(tactile_servo_hand_biotac_position src/tactile_servoing_hand_biotac_position.cpp)
+
 
 #add_executable(finger_jacobian_service src/finger_jacobian_service.cpp)
 #add_executable(sensor_tf_broadcaster src/sensor_tf_broadcaster.cpp)
@@ -120,7 +122,8 @@ add_executable(tactile_servo_hand_biotac src/tactile_servoing_hand_biotac.cpp)
 #target_link_libraries(tactile_servo ${catkin_LIBRARIES} ${Boost_LIBRARIES})
 target_link_libraries(tactile_servo_hand ${catkin_LIBRARIES} ${Boost_LIBRARIES})
 target_link_libraries(tactile_servo_node ${catkin_LIBRARIES} ${Boost_LIBRARIES})
-target_link_libraries(tactile_servo_hand_biotac ${catkin_LIBRARIES} ${Boost_LIBRARIES})
+target_link_libraries(tactile_servo_hand_biotac_gaussian ${catkin_LIBRARIES} ${Boost_LIBRARIES})
+target_link_libraries(tactile_servo_hand_biotac_position ${catkin_LIBRARIES} ${Boost_LIBRARIES})
 
 #target_link_libraries(sensor_tf_broadcaster ${catkin_LIBRARIES})
 #target_link_libraries(finger_jacobian_service ${catkin_LIBRARIES})
@@ -164,7 +167,9 @@ target_link_libraries(tactile_servo_hand_biotac ${catkin_LIBRARIES} ${Boost_LIBR
 #install(TARGETS tactile_servo DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
 install(TARGETS tactile_servo_hand DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
 install(TARGETS tactile_servo_node DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
-install(TARGETS tactile_servo_hand_biotac DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
+install(TARGETS tactile_servo_hand_biotac_gaussian DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
+install(TARGETS tactile_servo_hand_biotac_position DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
+
 
 #install(TARGETS sensor_tf_broadcaster DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
 #install(TARGETS finger_jacobian_service DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
