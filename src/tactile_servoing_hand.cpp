@@ -446,9 +446,9 @@ std_msgs::Float64 wr_j2_val;
           tf::StampedTransform transform_s;
           tfListener.waitForTransform("palm", "ffsensor", now, ros::Duration(8.0));
           tfListener.lookupTransform("palm", "ffsensor", now, transform_s);
-          //ROS_INFO("Transformation  x = %f, y = %f, z = %f)", transform.getOrigin().getX(), transform.getOrigin().getY(), transform.getOrigin().getZ());
+          //ROS_INFO("Transformation  x = %f, y = %f, z = %f)", transform.getOrigin().getX(), transform.getOrigin().getY(), transform.getOrigin().getZ());+
           tf::Quaternion q = transform_s.getRotation();
-          tf::Matrix3x3 rotation_matrix(q);
+          tf::Matrix3x3 rotation_matrix(q);                                                                                                                                                                                                                        
           transformation_matrix <<  rotation_matrix[0].getX(), rotation_matrix[0].getY(), rotation_matrix[0].getZ(), transform_s.getOrigin().getX(), 
                                     rotation_matrix[1].getX(), rotation_matrix[1].getY(), rotation_matrix[1].getZ(), transform_s.getOrigin().getY(),
                                     rotation_matrix[2].getX(), rotation_matrix[2].getY(), rotation_matrix[2].getZ(), transform_s.getOrigin().getZ(),

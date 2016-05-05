@@ -478,6 +478,12 @@ public:
     */
   }
 
+  void letPublish(float value){
+      std_msgs::Float64 pub_val;
+      pub_val.data = value;
+      j0_pub.publish(pub_val);
+  }
+
 };
 
 
@@ -488,6 +494,8 @@ Main:  nodo control tactil
 */
 int main(int argc, char **argv)
 {
+
+
   ros::init(argc, argv, "tactile_servo_biotac");
   NodeClass* a = new NodeClass();
   ros::AsyncSpinner spinner(1);
@@ -499,6 +507,104 @@ int main(int argc, char **argv)
   ros::Time current_time;
   ros::Time last_time = ros::Time::now(); 
   char* name_finger;
+
+   // >> PUBLISHERS PARA CONTROLADORES DE POSICION
+  ros::Publisher pos_ff_j0_pub = a->n.advertise<std_msgs::Float64>("/sh_rh_ffj0_position_controller/command", 1000);
+  ros::Publisher pos_ff_j3_pub = a->n.advertise<std_msgs::Float64>("/sh_rh_ffj3_position_controller/command", 1000);
+  ros::Publisher pos_ff_j4_pub = a->n.advertise<std_msgs::Float64>("/sh_rh_ffj4_position_controller/command", 1000);
+  std_msgs::Float64 ff_j0_val;
+  std_msgs::Float64 ff_j3_val;
+  std_msgs::Float64 ff_j4_val;
+  
+  ros::Publisher pos_mf_j0_pub = a->n.advertise<std_msgs::Float64>("/sh_rh_mfj0_position_controller/command", 1000);
+  ros::Publisher pos_mf_j3_pub = a->n.advertise<std_msgs::Float64>("/sh_rh_mfj3_position_controller/command", 1000);
+  ros::Publisher pos_mf_j4_pub = a->n.advertise<std_msgs::Float64>("/sh_rh_mfj4_position_controller/command", 1000);
+  std_msgs::Float64 mf_j0_val;
+  std_msgs::Float64 mf_j3_val;
+  std_msgs::Float64 mf_j4_val;  
+
+  ros::Publisher pos_rf_j0_pub = a->n.advertise<std_msgs::Float64>("/sh_rh_rfj0_position_controller/command", 1000);
+  ros::Publisher pos_rf_j3_pub = a->n.advertise<std_msgs::Float64>("/sh_rh_rfj3_position_controller/command", 1000);
+  ros::Publisher pos_rf_j4_pub = a->n.advertise<std_msgs::Float64>("/sh_rh_rfj4_position_controller/command", 1000);
+  std_msgs::Float64 rf_j0_val;
+  std_msgs::Float64 rf_j3_val;
+  std_msgs::Float64 rf_j4_val;
+  
+  ros::Publisher pos_lf_j0_pub = a->n.advertise<std_msgs::Float64>("/sh_rh_lfj0_position_controller/command", 1000);
+  ros::Publisher pos_lf_j3_pub = a->n.advertise<std_msgs::Float64>("/sh_rh_lfj3_position_controller/command", 1000);
+  ros::Publisher pos_lf_j4_pub = a->n.advertise<std_msgs::Float64>("/sh_rh_lfj4_position_controller/command", 1000);
+  ros::Publisher pos_lf_j5_pub = a->n.advertise<std_msgs::Float64>("/sh_rh_lfj5_position_controller/command", 1000);
+  std_msgs::Float64 lf_j0_val;
+  std_msgs::Float64 lf_j3_val;
+  std_msgs::Float64 lf_j4_val;
+  std_msgs::Float64 lf_j5_val;
+
+  ros::Publisher pos_th_j1_pub = a->n.advertise<std_msgs::Float64>("/sh_rh_thj1_position_controller/command", 1000);
+  ros::Publisher pos_th_j2_pub = a->n.advertise<std_msgs::Float64>("/sh_rh_thj2_position_controller/command", 1000);
+  ros::Publisher pos_th_j3_pub = a->n.advertise<std_msgs::Float64>("/sh_rh_thj3_position_controller/command", 1000);
+  ros::Publisher pos_th_j4_pub = a->n.advertise<std_msgs::Float64>("/sh_rh_thj4_position_controller/command", 1000);
+  ros::Publisher pos_th_j5_pub = a->n.advertise<std_msgs::Float64>("/sh_rh_thj5_position_controller/command", 1000);
+  std_msgs::Float64 th_j2_val;
+  std_msgs::Float64 th_j3_val;
+  std_msgs::Float64 th_j4_val;
+  std_msgs::Float64 th_j5_val;
+  std_msgs::Float64 th_j1_val;
+
+  // >> posiciones iniciales
+  ff_j4_val.data = -0.05;
+  pos_ff_j4_pub.publish(ff_j4_val);
+  sleep(0.1);
+  ff_j3_val.data = 1.3;
+  pos_ff_j3_pub.publish(ff_j3_val);
+  sleep(0.1);
+  ff_j0_val.data = 1.3;
+  pos_ff_j0_pub.publish(ff_j0_val);
+  sleep(0.1);
+  mf_j4_val.data = -0.05;
+  pos_mf_j4_pub.publish(mf_j4_val);
+  sleep(0.1);
+  mf_j3_val.data = 0.3;
+  pos_mf_j3_pub.publish(mf_j3_val);
+  sleep(0.1);
+  mf_j0_val.data = 0.3;
+  pos_mf_j0_pub.publish(mf_j0_val);
+  sleep(0.1);
+  rf_j4_val.data = -0.05;
+  pos_rf_j4_pub.publish(rf_j4_val);
+  sleep(0.1);
+  rf_j3_val.data = 0.3;
+  pos_rf_j3_pub.publish(rf_j3_val);
+  sleep(0.1);
+  rf_j0_val.data = 0.3;
+  pos_rf_j0_pub.publish(rf_j0_val);
+  sleep(0.1);
+  lf_j5_val.data = 0.0;
+  pos_lf_j5_pub.publish(lf_j5_val);
+  sleep(0.1);
+  lf_j4_val.data = 0.0;
+  pos_lf_j4_pub.publish(lf_j4_val);
+  sleep(0.1);
+  lf_j3_val.data = 0.3;
+  pos_lf_j3_pub.publish(lf_j3_val);
+  sleep(0.1);
+  lf_j0_val.data = 0.3;
+  pos_lf_j0_pub.publish(lf_j0_val);
+  sleep(0.1);
+  th_j5_val.data = 0.802;
+  pos_th_j5_pub.publish(th_j5_val);
+  sleep(0.1);
+  th_j4_val.data = 1.22;
+  pos_th_j4_pub.publish(th_j4_val);
+  sleep(0.1);
+  th_j3_val.data = 0.157;
+  pos_th_j3_pub.publish(th_j3_val);
+  sleep(0.1);
+  th_j2_val.data = -0.698;
+  pos_th_j2_pub.publish(th_j2_val);
+  sleep(0.1);
+  th_j1_val.data = 0.261;
+  pos_th_j1_pub.publish(th_j1_val);
+  sleep(0.1);
 
 
   // Clases para transformaciones con tf2
@@ -543,7 +649,7 @@ int main(int argc, char **argv)
   *
   */
   ROS_INFO("Tactile servo loop started... ");
-  
+
   do{
     Finger* current_finger;
 
@@ -555,6 +661,7 @@ int main(int argc, char **argv)
           {current_finger = new Finger("-","/sh_thj1_position_controller/command","/sh_thj2_position_controller/command",
                     "/sh_thj3_position_controller/command","/sh_thj4_position_controller/command","/sh_thj5_position_controller/command",
                     "/biotac_electrodes_th",a);
+
           name_finger = "Thumb";
           break;}
 
@@ -563,6 +670,7 @@ int main(int argc, char **argv)
           {current_finger = new Finger("/sh_ffj0_position_controller/command","-","-",
                     "/sh_ffj3_position_controller/command","/sh_ffj4_position_controller/command","-",
                     "/biotac_electrodes_ff",a);
+
           name_finger = "Index";
           break;}
 
@@ -572,6 +680,7 @@ int main(int argc, char **argv)
                     "/sh_mfj3_position_controller/command","/sh_mfj4_position_controller/command","-",
                     "/biotac_electrodes_mf",a);
           name_finger = "Middle";
+
           break;}
 
         // 3: ring
@@ -579,6 +688,7 @@ int main(int argc, char **argv)
           {current_finger = new Finger("/sh_rfj0_position_controller/command","-","-",
                     "/sh_rfj3_position_controller/command","/sh_rfj4_position_controller/command","-",
                     "/biotac_electrodes_rf",a);
+
           name_finger = "Ring";
           break;}
 
@@ -587,6 +697,8 @@ int main(int argc, char **argv)
           {current_finger = new Finger("/sh_lfj0_position_controller/command","-","-",
                     "/sh_lfj3_position_controller/command","/sh_lfj4_position_controller/command","/sh_lfj5_position_controller/command",
                     "/biotac_electrodes_lf",a);
+
+
           name_finger = "Little";
           break;}
       }
@@ -601,7 +713,8 @@ int main(int argc, char **argv)
         a->virtual_image(a->tactel_pixels_positions(i,0),a->tactel_pixels_positions(i,1)) = current_finger->tactile_values[i];
       }
       ROS_INFO("Tactile image: ok");
-     
+      
+
       /**
       * - NORMALIZAR IMAGEN -> gray (0,255)
       * - OBTENER IMAGEN COMPLEMENTARIA
@@ -630,6 +743,7 @@ int main(int argc, char **argv)
 
 
       /**
+      *
       * OBTENER VALORES DE DESVIACION PARA CADA GAUSSIANA DEPENDIENTES DE LOS VECINOS   
       * max_distance = sqrt((pixels_horiz.^2)   +  (pixels_vertical.^2)  );
       * obtener valor gaussiana para cada electrodo. Inversamente
@@ -748,7 +862,48 @@ int main(int argc, char **argv)
       last_time = current_time;
 
       a->output_velocity = a->tactile_position_interaction_matrix * a->error_vector;
-      ROS_INFO_STREAM("OUTPUT FINGER VELOCITY: \n" << a->output_velocity);      
+      ROS_INFO_STREAM("OUTPUT FINGER VELOCITY: \n" << a->output_velocity);    
+
+      //  Publish Data
+      std_msgs::Float64 pub_val;
+      switch(finger){
+        // 0: thumb
+        case 0: 
+          {
+          break;}
+
+        // 1: first
+        case 1: 
+          {
+            ff_j3_val.data +=  0.1;
+            pos_ff_j3_pub.publish(ff_j3_val);
+            sleep(0.1);
+          break;}
+
+        // 2: middle
+        case 2: 
+          {
+            mf_j3_val.data +=  0.1;
+            pos_mf_j3_pub.publish(mf_j3_val);
+            sleep(0.1);
+          break;}
+
+        // 3: ring
+        case 3: 
+          {
+            rf_j3_val.data +=  0.1;
+            pos_rf_j3_pub.publish(rf_j3_val);
+            sleep(0.1);
+          break;}
+
+        // 4: little
+        case 4: 
+          {
+            lf_j3_val.data +=  0.1;
+            pos_lf_j3_pub.publish(lf_j3_val);
+            sleep(0.1);
+          break;}
+      }
 
     }
 
