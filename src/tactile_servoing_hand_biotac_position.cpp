@@ -48,6 +48,17 @@ using namespace std;
 #define ZERO_VALUE 3300
 #define IMAGE_RANK 255
 #define PATH_FILE_DESIRED_FEATURES "/home/anxo/projects/shadow_robot/base_deps/src/tactile_servoing_shadow/files/desired_tactile_data.txt"
+#define J0_HIGH_LIMIT 3.14
+#define J0_LOW_LIMIT 0.0
+#define J3_HIGH_LIMIT 1.57
+#define J3_LOW_LIMIT 0.0
+#define J4_HIGH_LEVEL 0.34
+#define J4_LOW_LEVEL -0.34
+#define TH_J1_HIGH_LEVEL 1.57
+#define TH_J1_LOW_LEVEL 0.0
+#define TH_J2_HIGH_LEVEL 0.69
+#define TH_J2_LOW_LEVEL -0.69
+
 
 class NodeClass {
 
@@ -504,8 +515,6 @@ int main(int argc, char **argv)
   /** Iniciar PID */
   /** (p,i,d,i_max, d_max)*/
   pid_controller.initPid(0.5,0.3,0.3,0.0,0.0);
-  ros::Time current_time;
-  ros::Time last_time = ros::Time::now(); 
   char* name_finger;
 
    // >> PUBLISHERS PARA CONTROLADORES DE POSICION
@@ -550,63 +559,7 @@ int main(int argc, char **argv)
   std_msgs::Float64 th_j5_val;
   std_msgs::Float64 th_j1_val;
 
-  // >> posiciones iniciales
-  ff_j4_val.data = -0.05;
-  pos_ff_j4_pub.publish(ff_j4_val);
-  sleep(0.1);
-  ff_j3_val.data = 1.3;
-  pos_ff_j3_pub.publish(ff_j3_val);
-  sleep(0.1);
-  ff_j0_val.data = 1.3;
-  pos_ff_j0_pub.publish(ff_j0_val);
-  sleep(0.1);
-  mf_j4_val.data = -0.05;
-  pos_mf_j4_pub.publish(mf_j4_val);
-  sleep(0.1);
-  mf_j3_val.data = 0.3;
-  pos_mf_j3_pub.publish(mf_j3_val);
-  sleep(0.1);
-  mf_j0_val.data = 0.3;
-  pos_mf_j0_pub.publish(mf_j0_val);
-  sleep(0.1);
-  rf_j4_val.data = -0.05;
-  pos_rf_j4_pub.publish(rf_j4_val);
-  sleep(0.1);
-  rf_j3_val.data = 0.3;
-  pos_rf_j3_pub.publish(rf_j3_val);
-  sleep(0.1);
-  rf_j0_val.data = 0.3;
-  pos_rf_j0_pub.publish(rf_j0_val);
-  sleep(0.1);
-  lf_j5_val.data = 0.0;
-  pos_lf_j5_pub.publish(lf_j5_val);
-  sleep(0.1);
-  lf_j4_val.data = 0.0;
-  pos_lf_j4_pub.publish(lf_j4_val);
-  sleep(0.1);
-  lf_j3_val.data = 0.3;
-  pos_lf_j3_pub.publish(lf_j3_val);
-  sleep(0.1);
-  lf_j0_val.data = 0.3;
-  pos_lf_j0_pub.publish(lf_j0_val);
-  sleep(0.1);
-  th_j5_val.data = 0.802;
-  pos_th_j5_pub.publish(th_j5_val);
-  sleep(0.1);
-  th_j4_val.data = 1.22;
-  pos_th_j4_pub.publish(th_j4_val);
-  sleep(0.1);
-  th_j3_val.data = 0.157;
-  pos_th_j3_pub.publish(th_j3_val);
-  sleep(0.1);
-  th_j2_val.data = -0.698;
-  pos_th_j2_pub.publish(th_j2_val);
-  sleep(0.1);
-  th_j1_val.data = 0.261;
-  pos_th_j1_pub.publish(th_j1_val);
-  sleep(0.1);
-
-
+  
   // Clases para transformaciones con tf2
   tf2_ros::Buffer tfBuffer;
   tf::TransformListener tfListener; 
@@ -640,7 +593,7 @@ int main(int argc, char **argv)
   a->tactile_position_interaction_matrix = ArrayXXf::Zero(3,3);
   a->tactile_position_interaction_matrix << 1,0,0,
                                             0,1,0,
-                                            0.5, 0.5, 1;
+                                            0, 0, 0.001;
 
 
 
@@ -648,265 +601,358 @@ int main(int argc, char **argv)
   *  BUCLE OBTENCION IMAGEN  -  TACTILE CONTROL
   *
   */
-  ROS_INFO("Tactile servo loop started... ");
+  ros::Time last_time = ros::Time::now();
+  ros::Time current_time;
+  ros::Duration interval;
+  Finger* current_finger;
+  int iteration = 0;
 
   do{
-    Finger* current_finger;
 
-    for(int finger = 0; finger < 5; finger++){
+    if(iteration == 1){sleep(3.0);};
 
-      switch(finger){
-        // 0: thumb
-        case 0: 
-          {current_finger = new Finger("-","/sh_thj1_position_controller/command","/sh_thj2_position_controller/command",
-                    "/sh_thj3_position_controller/command","/sh_thj4_position_controller/command","/sh_thj5_position_controller/command",
-                    "/biotac_electrodes_th",a);
-
-          name_finger = "Thumb";
-          break;}
-
-        // 1: first
-        case 1: 
-          {current_finger = new Finger("/sh_ffj0_position_controller/command","-","-",
-                    "/sh_ffj3_position_controller/command","/sh_ffj4_position_controller/command","-",
-                    "/biotac_electrodes_ff",a);
-
-          name_finger = "Index";
-          break;}
-
-        // 2: middle
-        case 2: 
-          {current_finger = new Finger("/sh_mfj0_position_controller/command","-","-",
-                    "/sh_mfj3_position_controller/command","/sh_mfj4_position_controller/command","-",
-                    "/biotac_electrodes_mf",a);
-          name_finger = "Middle";
-
-          break;}
-
-        // 3: ring
-        case 3: 
-          {current_finger = new Finger("/sh_rfj0_position_controller/command","-","-",
-                    "/sh_rfj3_position_controller/command","/sh_rfj4_position_controller/command","-",
-                    "/biotac_electrodes_rf",a);
-
-          name_finger = "Ring";
-          break;}
-
-        // 4: little
-        case 4: 
-          {current_finger = new Finger("/sh_lfj0_position_controller/command","-","-",
-                    "/sh_lfj3_position_controller/command","/sh_lfj4_position_controller/command","/sh_lfj5_position_controller/command",
-                    "/biotac_electrodes_lf",a);
-
-
-          name_finger = "Little";
-          break;}
-      }
-
-      ROS_INFO(">> %s",name_finger);
-      ROS_INFO("Finger initialization: ok");
-
-      /**
-      *  INICIALIZAR VALORES DE IMAGEN TACTIL
-      */
-      for(int i=0; i<NUM_TACTELS; i++){ 
-        a->virtual_image(a->tactel_pixels_positions(i,0),a->tactel_pixels_positions(i,1)) = current_finger->tactile_values[i];
-      }
-      ROS_INFO("Tactile image: ok");
-      
-
-      /**
-      * - NORMALIZAR IMAGEN -> gray (0,255)
-      * - OBTENER IMAGEN COMPLEMENTARIA
-      */
-      a->virtual_image *= IMAGE_RANK;
-      a->virtual_image /= ZERO_VALUE;
-      for(int i=0; i < a->virtual_image.rows();i++){
-        for(int j=0; j < a->virtual_image.cols();j++){
-          a->virtual_image(i,j) = 255 - a->virtual_image(i,j); 
-        }
-      }
-      ROS_INFO("Normalized tactile image: ok");
-
-      /**
-      * CREAR ARRAY DE VALORES DE LO KNN
-      * size: num_tactels x num_neigh
-      */
-      a->nearest_neighbors_values =  ArrayXXf::Zero(NUM_TACTELS,NUM_NEIGHBORS);
-      for(int i=0; i < NUM_TACTELS; i++){
-        for(int j=0; j < NUM_NEIGHBORS; j++){
-          // Asignar valores de los vecinos. En nearest_neighbor_positions guardo el indice (1-19) -> en vector (0-18)
-          a->nearest_neighbors_values(i,j) = current_finger->tactile_values[(a->nearest_neighbors_positions(i,j))-1]; 
-        }
-      }  
-      ROS_INFO("Current array of neighbors for tactile image: ok");
-
-
-      /**
-      *
-      * OBTENER VALORES DE DESVIACION PARA CADA GAUSSIANA DEPENDIENTES DE LOS VECINOS   
-      * max_distance = sqrt((pixels_horiz.^2)   +  (pixels_vertical.^2)  );
-      * obtener valor gaussiana para cada electrodo. Inversamente
-      * proporcional a la distanci y directamente proporcional al valor de
-      * cada uno de los electrodos incluidos dentro de los k-nn. Media de los
-      * valores.
-      *
-      */
-      double max_distance = sqrt((pow(a->pixels_horizontal,2))   +  (pow(a->pixels_vertical,2))  );
-      a->deviations_array = ArrayXXf::Zero(NUM_TACTELS,1);
-      double gaussian_deviation_value, distance_factor, gray_normalized_value;
-      for(int i=0; i < NUM_TACTELS; i++){
-        gaussian_deviation_value = 0;
-        for(int j=0; j<NUM_NEIGHBORS; j++){
-          distance_factor = a->nearest_neighbors_positions(i,NUM_NEIGHBORS+j) / max_distance;
-          // normalizar valor del pixel
-          gray_normalized_value = (a->nearest_neighbors_values(i,j) * a->pixels_vertical) / 255;
-          gaussian_deviation_value = gaussian_deviation_value + (gray_normalized_value * distance_factor);
-        }
-        a->deviations_array(i,0) = gaussian_deviation_value / NUM_NEIGHBORS;
-      }
-      ROS_INFO("Dynamic gaussian deviation values: ok");
-
-
-      /**
-      * 
-      *
-      * MIXTURE OF GAUSSIAN METHOD
-      */
-      a->mixture_gaussian_image = ArrayXXf::Zero(a->pixels_vertical, a->pixels_horizontal);
-      double value_i_j;
-      int index_tactel;
-
-      for(int i=0; i<a->pixels_vertical; i++){
-        for(int j=0; j<a->pixels_horizontal; j++){
-          value_i_j = 0;
-
-          // Recorrer imagen dando valores a cada pixel dependiendo de la suma de gaussianas dinamica en cada punto. Valores 0, descartados
-          for(int ui=0; ui<a->pixels_vertical; ui++){
-            for(int uj=0; uj<a->pixels_horizontal; uj++){
-              if(a->virtual_image(ui,uj) != 0){
-                index_tactel = a->getIndexTactel(ui,uj);
-                if(index_tactel!=0)
-                  value_i_j += a->virtual_image(ui,uj) * ( 
-                                    exp(
-                                      (-1) *
-                                      ( (pow(i-ui,2)) + (pow(j-uj,2)) )
-                                          /
-                                      (2 * pow(a->deviations_array(index_tactel),2) )
-                                      )
-                                                        );                          
-              }
-
-            }
-          } // End for interior
-
-          a->mixture_gaussian_image(i,j) = value_i_j;
-        }
-      }// End for exterior
-      
-      ROS_INFO("Gaussian mixture tactile image: ok");
-      ROS_INFO_STREAM("IMAGE: \n" << a->mixture_gaussian_image);
-
-
-
-      /**
-      *
-      *  BUCLE DE CONTROL:
-      * error = mixture_gaussian_image - desired_gaussian_image
-      * v = Jacobian * error
-      *
-      */
-
-      /**
-      * 
-      * GET ERROR -> VECTOR (ex, ey, em)
-      * get position of the contact: resultant of the applied forces, position and magnitude
-      *
-      *
-      */
-      // Get sum values and resultant position of force for currente image:
-      double image_sum;
-      double sum_fx, sum_fy;
-      int resultant_pos_x, resultant_pos_y;
-      for(int i=0; i<a->pixels_vertical; i++){
-        for(int j=0; j<a->pixels_horizontal; j++){
-          image_sum += a->mixture_gaussian_image(i,j);
-        }
-      }
-      for(int i=0; i<a->pixels_vertical; i++){
-        for(int j=0; j<a->pixels_horizontal; j++){
-          sum_fx += i * (a->mixture_gaussian_image(i,j));
-          sum_fy += j * (a->mixture_gaussian_image(i,j));
-        }
-      }
-      resultant_pos_x = round(sum_fx / image_sum);
-      resultant_pos_y = round(sum_fy / image_sum);
-
-      // get error vector
-      a->error_vector =  ArrayXXf::Zero(3,1);
-      a->error_vector(0,0) =  desired_pos_x - resultant_pos_x;
-      a->error_vector(1,0) =  desired_pos_y - resultant_pos_y;
-      a->error_vector(2,0) =  desired_image_sum - image_sum; 
-
-
-      /**
-      * 
-      * APPLY CONTROL LAW:
-      * Interaction matrix defined in initialization
-      */
-      // Aplicar PID a errores
-      ros::Time current_time = ros::Time::now(); 
-      a->error_vector(0,0) = pid_controller.updatePid(a->error_vector(0,0), current_time - last_time);
-      a->error_vector(1,0) = pid_controller.updatePid(a->error_vector(1,0), current_time - last_time);
-      a->error_vector(2,0) = pid_controller.updatePid(a->error_vector(2,0), current_time - last_time);
-      last_time = current_time;
-
-      a->output_velocity = a->tactile_position_interaction_matrix * a->error_vector;
-      ROS_INFO_STREAM("OUTPUT FINGER VELOCITY: \n" << a->output_velocity);    
-
-      //  Publish Data
-      std_msgs::Float64 pub_val;
-      switch(finger){
-        // 0: thumb
-        case 0: 
-          {
-          break;}
-
-        // 1: first
-        case 1: 
-          {
-            ff_j3_val.data +=  0.1;
-            pos_ff_j3_pub.publish(ff_j3_val);
-            sleep(0.1);
-          break;}
-
-        // 2: middle
-        case 2: 
-          {
-            mf_j3_val.data +=  0.1;
-            pos_mf_j3_pub.publish(mf_j3_val);
-            sleep(0.1);
-          break;}
-
-        // 3: ring
-        case 3: 
-          {
-            rf_j3_val.data +=  0.1;
-            pos_rf_j3_pub.publish(rf_j3_val);
-            sleep(0.1);
-          break;}
-
-        // 4: little
-        case 4: 
-          {
-            lf_j3_val.data +=  0.1;
-            pos_lf_j3_pub.publish(lf_j3_val);
-            sleep(0.1);
-          break;}
-      }
-
+    if(iteration == 0){
+      // >> posiciones iniciales
+      ROS_INFO("Positioning index finger...");
+      ff_j4_val.data = -0.05;
+      pos_ff_j4_pub.publish(ff_j4_val);
+      sleep(1.0);
+      ff_j3_val.data = 0.0;
+      pos_ff_j3_pub.publish(ff_j3_val);
+      sleep(1.0);
+      ff_j0_val.data = 0.5;
+      pos_ff_j0_pub.publish(ff_j0_val);
+      sleep(1.0);
+      ROS_INFO("Positioning middle finger...");
+      mf_j4_val.data = -0.05;
+      pos_mf_j4_pub.publish(mf_j4_val);
+      sleep(1.0);
+      mf_j3_val.data = 0.0;
+      pos_mf_j3_pub.publish(mf_j3_val);
+      sleep(1.0);
+      mf_j0_val.data = 0.5;
+      pos_mf_j0_pub.publish(mf_j0_val);
+      sleep(1.0);
+      ROS_INFO("Positioning ring finger...");
+      rf_j4_val.data = -0.05;
+      pos_rf_j4_pub.publish(rf_j4_val);
+      sleep(1.0);
+      rf_j3_val.data = 0.0;
+      pos_rf_j3_pub.publish(rf_j3_val);
+      sleep(1.0);
+      rf_j0_val.data = 0.5;
+      pos_rf_j0_pub.publish(rf_j0_val);
+      sleep(1.0);
+      ROS_INFO("Positioning little finger...");
+      lf_j5_val.data = 0.0;
+      pos_lf_j5_pub.publish(lf_j5_val);
+      sleep(1.0);
+      lf_j4_val.data = 0.0;
+      pos_lf_j4_pub.publish(lf_j4_val);
+      sleep(1.0);
+      lf_j3_val.data = 0.0;
+      pos_lf_j3_pub.publish(lf_j3_val);
+      sleep(1.0);
+      lf_j0_val.data = 0.5;
+      pos_lf_j0_pub.publish(lf_j0_val);
+      sleep(1.0);
+      ROS_INFO("Positioning Thumb...");
+      th_j5_val.data = 0.802;
+      pos_th_j5_pub.publish(th_j5_val);
+      sleep(1.0);
+      th_j4_val.data = 1.22;
+      pos_th_j4_pub.publish(th_j4_val);
+      sleep(1.0);
+      th_j3_val.data = 0.157;
+      pos_th_j3_pub.publish(th_j3_val);
+      sleep(1.0);
+      th_j2_val.data = -0.698;
+      pos_th_j2_pub.publish(th_j2_val);
+      sleep(1.0);
+      th_j1_val.data = 0.261;
+      pos_th_j1_pub.publish(th_j1_val);
+      sleep(1.0);
+      ROS_INFO("Initial position: ok");
     }
+    else{
 
+      for(int finger = 0; finger < 5; finger++){
+
+        switch(finger){
+          // 0: thumb
+          case 0: 
+            {current_finger = new Finger("-","/sh_thj1_position_controller/command","/sh_thj2_position_controller/command",
+                      "/sh_thj3_position_controller/command","/sh_thj4_position_controller/command","/sh_thj5_position_controller/command",
+                      "/biotac_electrodes_th",a);
+
+            name_finger = "Thumb";
+            break;}
+
+          // 1: first
+          case 1: 
+            {current_finger = new Finger("/sh_ffj0_position_controller/command","-","-",
+                      "/sh_ffj3_position_controller/command","/sh_ffj4_position_controller/command","-",
+                      "/biotac_electrodes_ff",a);
+
+            name_finger = "Index";
+            break;}
+
+          // 2: middle
+          case 2: 
+            {current_finger = new Finger("/sh_mfj0_position_controller/command","-","-",
+                      "/sh_mfj3_position_controller/command","/sh_mfj4_position_controller/command","-",
+                      "/biotac_electrodes_mf",a);
+            name_finger = "Middle";
+
+            break;}
+
+          // 3: ring
+          case 3: 
+            {current_finger = new Finger("/sh_rfj0_position_controller/command","-","-",
+                      "/sh_rfj3_position_controller/command","/sh_rfj4_position_controller/command","-",
+                      "/biotac_electrodes_rf",a);
+
+            name_finger = "Ring";
+            break;}
+
+          // 4: little
+          case 4: 
+            {current_finger = new Finger("/sh_lfj0_position_controller/command","-","-",
+                      "/sh_lfj3_position_controller/command","/sh_lfj4_position_controller/command","/sh_lfj5_position_controller/command",
+                      "/biotac_electrodes_lf",a);
+
+
+            name_finger = "Little";
+            break;}
+        }
+
+        ROS_INFO(">> %s",name_finger);
+        ROS_INFO("Finger initialization: ok");
+
+        /**
+        *  INICIALIZAR VALORES DE IMAGEN TACTIL
+        */
+        for(int i=0; i<NUM_TACTELS; i++){ 
+          a->virtual_image(a->tactel_pixels_positions(i,0),a->tactel_pixels_positions(i,1)) = current_finger->tactile_values[i];
+        }
+        ROS_INFO("Tactile image: ok");
+        
+
+        /**
+        * - NORMALIZAR IMAGEN -> gray (0,255)
+        * - OBTENER IMAGEN COMPLEMENTARIA
+        */
+        a->virtual_image *= IMAGE_RANK;
+        a->virtual_image /= ZERO_VALUE;
+        for(int i=0; i < a->virtual_image.rows();i++){
+          for(int j=0; j < a->virtual_image.cols();j++){
+            a->virtual_image(i,j) = 255 - a->virtual_image(i,j); 
+          }
+        }
+        ROS_INFO("Normalized tactile image: ok");
+
+        /**
+        * CREAR ARRAY DE VALORES DE LO KNN
+        * size: num_tactels x num_neigh
+        */
+        a->nearest_neighbors_values =  ArrayXXf::Zero(NUM_TACTELS,NUM_NEIGHBORS);
+        for(int i=0; i < NUM_TACTELS; i++){
+          for(int j=0; j < NUM_NEIGHBORS; j++){
+            // Asignar valores de los vecinos. En nearest_neighbor_positions guardo el indice (1-19) -> en vector (0-18)
+            a->nearest_neighbors_values(i,j) = current_finger->tactile_values[(a->nearest_neighbors_positions(i,j))-1]; 
+          }
+        }  
+        ROS_INFO("Current array of neighbors for tactile image: ok");
+
+
+        /**
+        *
+        * OBTENER VALORES DE DESVIACION PARA CADA GAUSSIANA DEPENDIENTES DE LOS VECINOS   
+        * max_distance = sqrt((pixels_horiz.^2)   +  (pixels_vertical.^2)  );
+        * obtener valor gaussiana para cada electrodo. Inversamente
+        * proporcional a la distanci y directamente proporcional al valor de
+        * cada uno de los electrodos incluidos dentro de los k-nn. Media de los
+        * valores.
+        *
+        */
+        double max_distance = sqrt((pow(a->pixels_horizontal,2))   +  (pow(a->pixels_vertical,2))  );
+        a->deviations_array = ArrayXXf::Zero(NUM_TACTELS,1);
+        double gaussian_deviation_value, distance_factor, gray_normalized_value;
+        for(int i=0; i < NUM_TACTELS; i++){
+          gaussian_deviation_value = 0;
+          for(int j=0; j<NUM_NEIGHBORS; j++){
+            distance_factor = a->nearest_neighbors_positions(i,NUM_NEIGHBORS+j) / max_distance;
+            // normalizar valor del pixel
+            gray_normalized_value = (a->nearest_neighbors_values(i,j) * a->pixels_vertical) / 255;
+            gaussian_deviation_value = gaussian_deviation_value + (gray_normalized_value * distance_factor);
+          }
+          a->deviations_array(i,0) = gaussian_deviation_value / NUM_NEIGHBORS;
+        }
+        ROS_INFO("Dynamic gaussian deviation values: ok");
+
+
+        /**
+        * 
+        *
+        * MIXTURE OF GAUSSIAN METHOD
+        */
+        a->mixture_gaussian_image = ArrayXXf::Zero(a->pixels_vertical, a->pixels_horizontal);
+        double value_i_j;
+        int index_tactel;
+
+        for(int i=0; i<a->pixels_vertical; i++){
+          for(int j=0; j<a->pixels_horizontal; j++){
+            value_i_j = 0;
+
+            // Recorrer imagen dando valores a cada pixel dependiendo de la suma de gaussianas dinamica en cada punto. Valores 0, descartados
+            for(int ui=0; ui<a->pixels_vertical; ui++){
+              for(int uj=0; uj<a->pixels_horizontal; uj++){
+                if(a->virtual_image(ui,uj) != 0){
+                  index_tactel = a->getIndexTactel(ui,uj);
+                  if(index_tactel!=0)
+                    value_i_j += a->virtual_image(ui,uj) * ( 
+                                      exp(
+                                        (-1) *
+                                        ( (pow(i-ui,2)) + (pow(j-uj,2)) )
+                                            /
+                                        (2 * pow(a->deviations_array(index_tactel),2) )
+                                        )
+                                                          );                          
+                }
+
+              }
+            } // End for interior
+
+            a->mixture_gaussian_image(i,j) = value_i_j;
+          }
+        }// End for exterior
+        
+        ROS_INFO("Gaussian mixture tactile image: ok");
+        ROS_INFO_STREAM("IMAGE: \n" << a->mixture_gaussian_image);
+
+
+
+        /**
+        *
+        *  BUCLE DE CONTROL:
+        * error = mixture_gaussian_image - desired_gaussian_image
+        * v = Jacobian * error
+        *
+        */
+
+        /**
+        * 
+        * GET ERROR -> VECTOR (ex, ey, em)
+        * get position of the contact: resultant of the applied forces, position and magnitude
+        *
+        *
+        */
+        // Get sum values and resultant position of force for currente image:
+        double image_sum;
+        double sum_fx, sum_fy;
+        int resultant_pos_x, resultant_pos_y;
+        for(int i=0; i<a->pixels_vertical; i++){
+          for(int j=0; j<a->pixels_horizontal; j++){
+            image_sum += a->mixture_gaussian_image(i,j);
+          }
+        }
+        for(int i=0; i<a->pixels_vertical; i++){
+          for(int j=0; j<a->pixels_horizontal; j++){
+            sum_fx += i * (a->mixture_gaussian_image(i,j));
+            sum_fy += j * (a->mixture_gaussian_image(i,j));
+          }
+        }
+        resultant_pos_x = round(sum_fx / image_sum);
+        resultant_pos_y = round(sum_fy / image_sum);
+
+        // get error vector
+        a->error_vector =  ArrayXXf::Zero(3,1);
+        a->error_vector(0,0) =  desired_pos_x - resultant_pos_x;
+        a->error_vector(1,0) =  desired_pos_y - resultant_pos_y;
+        a->error_vector(2,0) =  desired_image_sum - image_sum; 
+
+
+        /**
+        * 
+        * APPLY CONTROL LAW:
+        * Interaction matrix defined in initialization
+        */
+        // Aplicar PID a errores
+        current_time = ros::Time::now(); 
+
+        a->error_vector(0,0) = pid_controller.updatePid(a->error_vector(0,0), current_time - last_time);
+        a->error_vector(1,0) = pid_controller.updatePid(a->error_vector(1,0), current_time - last_time);
+        a->error_vector(2,0) = pid_controller.updatePid(a->error_vector(2,0), current_time - last_time);
+        interval = current_time - last_time;
+
+        a->output_velocity = a->tactile_position_interaction_matrix * a->error_vector;
+        ROS_INFO_STREAM("OUTPUT FINGER VELOCITY: \n" << a->output_velocity);    
+
+        //  Publish Data
+        std_msgs::Float64 pub_val;
+        switch(finger){
+          // 0: thumb
+          case 0: 
+            {
+            break;}
+
+          // 1: first
+          case 1: 
+            {
+              ff_j3_val.data +=  0.000001 * (a->output_velocity(2,0) * (interval.toSec()));
+              if(ff_j3_val.data > J3_HIGH_LIMIT){ff_j3_val.data = J3_HIGH_LIMIT;}
+              if(ff_j3_val.data < J3_LOW_LIMIT){ff_j3_val.data = J3_LOW_LIMIT;} 
+              pos_ff_j3_pub.publish(ff_j3_val);
+              ff_j0_val.data +=  0.000001 * (a->output_velocity(2,0) * (interval.toSec()));
+              if(ff_j0_val.data > J0_HIGH_LIMIT){ff_j0_val.data = J0_HIGH_LIMIT;}
+              if(ff_j0_val.data < J0_LOW_LIMIT){ff_j0_val.data = J0_LOW_LIMIT;}
+              pos_ff_j0_pub.publish(ff_j0_val);
+              sleep(0.1);
+            break;}
+
+          // 2: middle
+          case 2: 
+            {
+              mf_j3_val.data +=  0.000001 * (a->output_velocity(2,0) * (interval.toSec()));
+              if(mf_j3_val.data > J3_HIGH_LIMIT){mf_j3_val.data = J3_HIGH_LIMIT;}
+              if(mf_j3_val.data < J3_LOW_LIMIT){mf_j3_val.data = J3_LOW_LIMIT;} 
+              pos_mf_j3_pub.publish(mf_j3_val);
+              mf_j0_val.data +=  0.000001 * (a->output_velocity(2,0) * (interval.toSec()));
+              if(mf_j0_val.data > J0_HIGH_LIMIT){mf_j0_val.data = J0_HIGH_LIMIT;}
+              if(mf_j0_val.data < J0_LOW_LIMIT){mf_j0_val.data = J0_LOW_LIMIT;}
+              pos_mf_j0_pub.publish(mf_j0_val);
+              sleep(0.1);
+
+            break;}
+
+          // 3: ring
+          case 3: 
+            {
+              rf_j3_val.data +=  0.000001 * (a->output_velocity(2,0) * (interval.toSec()));
+              if(rf_j3_val.data > J3_HIGH_LIMIT){rf_j3_val.data = J3_HIGH_LIMIT;}
+              if(rf_j3_val.data < J3_LOW_LIMIT){rf_j3_val.data = J3_LOW_LIMIT;} 
+              pos_rf_j3_pub.publish(rf_j3_val);
+              rf_j0_val.data +=  0.000001 * (a->output_velocity(2,0) * (interval.toSec()));
+              if(rf_j0_val.data > J0_HIGH_LIMIT){rf_j0_val.data = J0_HIGH_LIMIT;}
+              if(rf_j0_val.data < J0_LOW_LIMIT){rf_j0_val.data = J0_LOW_LIMIT;}
+              pos_rf_j0_pub.publish(rf_j0_val);
+              sleep(0.1);
+
+            break;}
+
+          // 4: little
+          case 4: 
+            {
+
+            break;}
+        }
+        last_time = current_time;
+      }
+
+    } // fin else (iteration)
+    ros::spinOnce();
+    iteration++;
+    ROS_INFO("Tactile servo loop started... ");
   }while(ros::ok);
 
 }
